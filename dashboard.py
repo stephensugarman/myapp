@@ -9,8 +9,8 @@ def calculate_rsi(series, period=14):
     if len(series) < period:
         return pd.Series([None] * len(series), index=series.index)
     delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    gain = delta.where(delta > 0, 0).rolling(window=period).mean()
+    loss = -delta.where(delta < 0, 0).rolling(window=period).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
@@ -36,9 +36,7 @@ def validate_data(df, required_columns):
     if len(df) < 2:
         return False
     for col in required_columns:
-        if col not in df.columns:
-            return False
-        if df[col].iloc[-2:].isna().any():
+        if col not in df.columns or df[col].iloc[-2:].isna().any():
             return False
     return True
 
@@ -81,7 +79,8 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     continue
 
                 # Safely retrieve last two Close prices and RSI
-                prev_close, last_close = df['Close'].iloc[-2], df['Close'].iloc[-1]
+                prev_close = df['Close'].iloc[-2]
+                last_close = df['Close'].iloc[-1]
                 last_rsi = df['RSI'].iloc[-1]
 
                 # Safely calculate price change
@@ -111,7 +110,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {last_rsi:.2f}")
                 elif score >= 2:
                     actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {last_rsi:.2f}")
-                elif last_rsi > 70:
+                elif pd.notna(last_rsi) and last_rsi > 70:
                     actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {last_rsi:.2f}")
             except Exception as e:
                 st.error(f"Error processing {ticker}: {e}")
