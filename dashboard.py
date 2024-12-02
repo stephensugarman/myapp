@@ -1,7 +1,6 @@
 # dashboard.py
 
 # Import Libraries
-# Import Libraries
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -96,6 +95,4 @@ def visualize_metrics(market_data, reconciled_recommendations):
             else:
                 st.warning(f"No valid data to display for ticker '{ticker}' in '{market_type}'")
 
-# Placeholder: Replace with your actual market_data
-market_data = {}
 visualize_metrics(market_data, reconciled_recommendations)
