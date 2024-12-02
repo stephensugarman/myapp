@@ -54,15 +54,25 @@ def fetch_real_market_data():
             try:
                 data = yf.download(ticker, period="1mo", interval="1d")
                 if not data.empty and 'Close' in data.columns:
+                    # Calculate indicators
                     data['RSI'] = calculate_rsi(data['Close'])
                     calculate_indicators(data)
-                    data = data.dropna(subset=['RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal'])
+                    
+                    # Drop rows with insufficient data for critical indicators
+                    required_cols = ['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']
+                    data = data.dropna(subset=required_cols, how='any')
+
+                    if data.empty:
+                        raise ValueError(f"Insufficient data after processing for {ticker}.")
+                    
+                    # Store processed data
                     market_data[market_type][ticker] = data
                 else:
-                    st.warning(f"Insufficient data for {ticker}. Skipping...")
+                    raise ValueError(f"Insufficient data for {ticker}.")
             except Exception as e:
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
+
 
 # Generate Recommendations
 def generate_actionable_recommendations(market_data, rsi_threshold=30, price_change_threshold=0.01):
