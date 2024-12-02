@@ -47,36 +47,37 @@ def fetch_real_market_data():
         'commodities': ['GC=F', 'SI=F', 'CL=F', 'NG=F'],
         'bonds': ['^TNX', '^IRX', '^FVX', '^TYX']
     }
+    required_cols = ['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']
     market_data = {}
+
     for market_type, ticker_list in tickers.items():
         market_data[market_type] = {}
         for ticker in ticker_list:
             try:
+                # Fetch data
                 data = yf.download(ticker, period="1mo", interval="1d")
-                if not data.empty and 'Close' in data.columns:
-                    # Calculate RSI
-                    data['RSI'] = calculate_rsi(data['Close'])
+                if data.empty or 'Close' not in data.columns:
+                    raise ValueError(f"Missing or insufficient raw data for {ticker}.")
 
-                    # Add additional indicators
-                    calculate_indicators(data)
+                # Calculate RSI and indicators
+                data['RSI'] = calculate_rsi(data['Close'])
+                calculate_indicators(data)
 
-                    # Ensure all required columns exist, even if filled with NaN
-                    required_cols = ['RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']
-                    for col in required_cols:
-                        if col not in data.columns:
-                            data[col] = float('nan')
+                # Ensure all required columns are present
+                for col in required_cols:
+                    if col not in data.columns:
+                        data[col] = float('nan')
 
-                    # Drop rows with NaN in required columns
-                    data = data.dropna(subset=['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal'])
+                # Drop rows with NaN in required columns
+                data = data.dropna(subset=required_cols)
 
-                    # Ensure we have valid data after processing
-                    if data.empty:
-                        raise ValueError(f"No valid data for {ticker} after processing.")
+                # Check if valid data remains after processing
+                if data.empty:
+                    raise ValueError(f"No valid rows for {ticker} after processing.")
 
-                    # Store processed data
-                    market_data[market_type][ticker] = data
-                else:
-                    raise ValueError(f"Insufficient raw data for {ticker}.")
+                # Store processed data
+                market_data[market_type][ticker] = data
+
             except Exception as e:
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
