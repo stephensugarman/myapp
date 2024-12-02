@@ -66,17 +66,13 @@ def fetch_real_market_data():
                 # Add additional indicators
                 calculate_indicators(data)
 
-                # Add missing required columns as NaN
+                # Ensure all required columns exist
                 for col in required_cols:
                     if col not in data.columns:
                         data[col] = float('nan')
 
-                # Debugging: Log missing values in key columns
-                missing_values = data[required_cols].isna().sum()
-                st.warning(f"{ticker}: Missing values: {missing_values.to_dict()}")
-
-                # Drop rows with NaN in required columns
-                data = data.dropna(subset=required_cols)
+                # Drop initial rows with NaNs (warm-up period for indicators)
+                data = data.iloc[max(14, 20):].dropna(subset=required_cols)
 
                 # If no valid rows remain, skip the ticker
                 if data.empty:
