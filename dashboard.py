@@ -54,34 +54,40 @@ def fetch_real_market_data():
         market_data[market_type] = {}
         for ticker in ticker_list:
             try:
-                # Fetch data with extended period for indicator calculations
+                # Fetch data with extended period
                 data = yf.download(ticker, period="6mo", interval="1d")
                 if data.empty or 'Close' not in data.columns:
                     st.warning(f"{ticker}: Missing 'Close' data. Skipping...")
                     continue
 
-                # Add RSI safely
+                # Calculate RSI
                 try:
                     data['RSI'] = calculate_rsi(data['Close'])
                 except Exception as e:
-                    st.warning(f"{ticker}: Error calculating RSI: {e}")
+                    st.warning(f"{ticker}: RSI calculation failed: {e}")
                     data['RSI'] = float('nan')
 
-                # Add indicators safely
+                # Calculate additional indicators
                 try:
                     calculate_indicators(data)
                 except Exception as e:
-                    st.warning(f"{ticker}: Error calculating indicators: {e}")
+                    st.warning(f"{ticker}: Indicator calculation failed: {e}")
+                    for col in ['BB_upper', 'BB_lower', 'MACD', 'Signal']:
+                        data[col] = float('nan')
 
                 # Ensure all required columns exist
                 for col in required_cols:
                     if col not in data.columns:
                         data[col] = float('nan')
 
-                # Drop rows with NaNs in required columns after warm-up
+                # Debug missing columns
+                missing_values = data[required_cols].isna().sum()
+                st.write(f"{ticker} Missing data summary: {missing_values.to_dict()}")
+
+                # Drop rows with missing values in required columns
                 data = data.iloc[20:].dropna(subset=required_cols)
 
-                # Check if any valid rows remain
+                # Check if valid rows remain
                 if data.empty:
                     st.warning(f"{ticker}: No valid rows after processing. Skipping...")
                     continue
@@ -92,7 +98,6 @@ def fetch_real_market_data():
             except Exception as e:
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
-
 
 # Generate Recommendations
 def generate_actionable_recommendations(market_data, rsi_threshold=30, price_change_threshold=0.01):
