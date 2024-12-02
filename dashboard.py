@@ -21,8 +21,10 @@ def calculate_indicators(df):
         df['MA50'] = df['Close'].rolling(window=50).mean()
         
         # Bollinger Bands
-        df['BB_upper'] = df['MA20'] + 2 * df['Close'].rolling(window=20).std()
-        df['BB_lower'] = df['MA20'] - 2 * df['Close'].rolling(window=20).std()
+        rolling_mean = df['Close'].rolling(window=20).mean()
+        rolling_std = df['Close'].rolling(window=20).std()
+        df['BB_upper'] = rolling_mean + (2 * rolling_std)
+        df['BB_lower'] = rolling_mean - (2 * rolling_std)
         
         # MACD
         df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
@@ -30,6 +32,7 @@ def calculate_indicators(df):
         
         # ADX
         df['ADX'] = calculate_adx(df)
+
 
 def calculate_adx(df, period=14):
     high = df['High']
