@@ -47,7 +47,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
     return actionable_recs
 
-# Visualize Enhanced Metrics with Dynamic Scaling
+# Module: Enhanced Metrics Visualization with Constant Value Handling
 def visualize_enhanced_metrics(df, ticker):
     if not df.empty:
         st.subheader(f"{ticker} Metrics")
@@ -61,7 +61,11 @@ def visualize_enhanced_metrics(df, ticker):
         price_min = df['Close'].min()
         price_max = df['Close'].max()
         price_range = price_max - price_min
-        ax.set_ylim(price_min - 0.1 * price_range, price_max + 0.1 * price_range)
+        
+        if price_range == 0:  # Handle constant Close prices
+            ax.set_ylim(price_min - 1, price_max + 1)
+        else:
+            ax.set_ylim(price_min - 0.1 * price_range, price_max + 0.1 * price_range)
         
         # Plot RSI
         if 'RSI' in df.columns:
@@ -83,6 +87,7 @@ def visualize_enhanced_metrics(df, ticker):
             ax2.legend(loc="upper right")
         
         st.pyplot(fig)
+
 
 # Display Actionable Recommendations
 def display_actionable_recommendations(actionable_recs):
