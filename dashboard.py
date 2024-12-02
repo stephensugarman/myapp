@@ -1,7 +1,6 @@
 # Import Libraries
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import yfinance as yf
 
 # RSI Calculation
@@ -29,15 +28,12 @@ def calculate_indicators(df):
         df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
         df['Signal'] = df['MACD'].ewm(span=9).mean()
 
-# Validate DataFrame for Analysis
-def is_valid_for_analysis(df, required_columns):
-    """Check if the DataFrame has enough rows and valid data for analysis."""
-    if df is None or df.empty or len(df) < 2:
-        return False
-    for col in required_columns:
-        if col not in df.columns or df[col].iloc[-2:].isna().any():
-            return False
-    return True
+# Helper Function: Safe Access
+def safe_access(df, key):
+    """Safely access the last two rows of a DataFrame column."""
+    if key not in df.columns or len(df) < 2:
+        return None, None
+    return df[key].iloc[-2], df[key].iloc[-1]
 
 # Fetch Real Market Data
 def fetch_real_market_data():
@@ -72,44 +68,41 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
         actionable_recs[market_type] = []
         for ticker, df in tickers.items():
             try:
-                # Validate DataFrame
-                if not is_valid_for_analysis(df, ['Close', 'RSI']):
-                    st.warning(f"Skipping {ticker}: Insufficient valid data for analysis.")
+                # Safely access the required data
+                prev_close, last_close = safe_access(df, 'Close')
+                last_rsi = df['RSI'].iloc[-1] if 'RSI' in df.columns and len(df) > 0 else None
+
+                # Validate data
+                if prev_close is None or last_close is None or pd.isna(prev_close) or pd.isna(last_close):
+                    st.warning(f"Skipping {ticker}: Insufficient data for analysis.")
                     continue
 
                 # Safely calculate price change
-                if len(df) >= 2:
-                    close_diff = df['Close'].iloc[-1] - df['Close'].iloc[-2]
-                    price_change = close_diff / df['Close'].iloc[-2] if df['Close'].iloc[-2] != 0 else 0
-                else:
-                    price_change = 0
+                price_change = (last_close - prev_close) / prev_close if prev_close != 0 else 0
 
-                # Retrieve indicator values
-                rsi = df['RSI'].iloc[-1]
+                # Indicator values
                 macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
                 signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
-                bb_upper = df['BB_upper'].iloc[-1] if 'BB_upper' in df.columns else None
                 bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
-                close = df['Close'].iloc[-1]
 
                 # Scoring logic
                 score = 0
-                if rsi < rsi_threshold:
+                if last_rsi is not None and last_rsi < rsi_threshold:
                     score += 2
                 if price_change > price_change_threshold:
                     score += 1
                 if macd is not None and signal is not None and macd > signal:
                     score += 1
-                if bb_lower is not None and close < bb_lower:
+                if bb_lower is not None and last_close < bb_lower:
                     score += 1
 
                 # Add recommendation
                 if score >= 4:
-                    actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}")
+                    actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {last_rsi:.2f}")
                 elif score >= 2:
-                    actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {rsi:.2f}")
-                elif rsi > 70:
-                    actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
+                    actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {last_rsi:.2f}")
+                elif last_rsi and last_rsi > 70:
+                    actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {last_rsi:.2f}")
             except Exception as e:
                 st.error(f"Error processing {ticker}: {e}")
     return actionable_recs
