@@ -1,15 +1,36 @@
 # dashboard.py
 
 # Import Libraries
+# Import Libraries
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
 # Sample Data (Replace with real data sources)
-recommendations = {'stocks': ['AAPL', 'MSFT'], 'crypto': ['BTC-USD']}
+recommendations = {'stocks': ['AAPL', 'MSFT'], 'crypto': []}
 top_movers = {'stocks': [('AAPL', 0.05), ('MSFT', 0.04)], 'crypto': [('BTC-USD', 0.08)]}
 sector_performance = {'stocks': 0.03, 'crypto': 0.05, 'commodities': -0.02}
 advanced_alerts = {'Trend Reversal': ['AAPL - Bullish Reversal'], 'Overbought/Oversold': ['BTC-USD - Overbought']}
+
+# Test Data for market_data
+market_data = {
+    'stocks': {
+        'AAPL': pd.DataFrame({
+            'Close': [150, 152, 154],
+            'RSI': [45, 50, 55]
+        }, index=pd.date_range("2024-11-01", periods=3)),
+        'MSFT': pd.DataFrame({
+            'Close': [300, 305, 310],
+            'RSI': [60, 65, 70]
+        }, index=pd.date_range("2024-11-01", periods=3))
+    },
+    'crypto': {
+        'BTC-USD': pd.DataFrame({
+            'Close': [50000, 51000, 52000],
+            'RSI': [72, 75, 78]
+        }, index=pd.date_range("2024-11-01", periods=3))
+    }
+}
 
 # Module 14: Reconcile Recommendations
 def reconcile_recommendations(recommendations, advanced_alerts):
