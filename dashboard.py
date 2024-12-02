@@ -36,7 +36,9 @@ def validate_data(df, required_columns):
     if len(df) < 2:
         return False
     for col in required_columns:
-        if col not in df.columns or df[col].iloc[-2:].isna().any():
+        if col not in df.columns:
+            return False
+        if df[col].iloc[-2:].isna().any():
             return False
     return True
 
@@ -89,19 +91,19 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     price_change = 0
 
                 # Indicators
-                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns and not df['MACD'].isna().iloc[-1] else None
-                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns and not df['Signal'].isna().iloc[-1] else None
-                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns and not df['BB_lower'].isna().iloc[-1] else None
+                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns and pd.notna(df['MACD'].iloc[-1]) else None
+                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns and pd.notna(df['Signal'].iloc[-1]) else None
+                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns and pd.notna(df['BB_lower'].iloc[-1]) else None
 
                 # Scoring Logic
                 score = 0
-                if last_rsi < rsi_threshold:
+                if pd.notna(last_rsi) and last_rsi < rsi_threshold:
                     score += 2
-                if price_change > price_change_threshold:
+                if pd.notna(price_change) and price_change > price_change_threshold:
                     score += 1
-                if macd is not None and signal is not None and macd > signal:
+                if pd.notna(macd) and pd.notna(signal) and macd > signal:
                     score += 1
-                if bb_lower is not None and pd.notna(last_close) and last_close < bb_lower:
+                if pd.notna(bb_lower) and pd.notna(last_close) and last_close < bb_lower:
                     score += 1
 
                 # Add Recommendation
