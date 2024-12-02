@@ -7,15 +7,18 @@ import matplotlib.dates as mdates
 
 # RSI Calculation
 def calculate_rsi(series, period=14):
+    if len(series) < period:
+        return pd.Series(index=series.index)  # Return an empty series for insufficient data
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
     rs = gain / loss
-    return 100 - (100 / (1 + rs))
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
 # Additional Indicators
 def calculate_indicators(df):
-    if 'Close' in df.columns:
+    if 'Close' in df.columns and not df.empty:
         # Moving Averages
         df['MA20'] = df['Close'].rolling(window=20).mean()
         df['MA50'] = df['Close'].rolling(window=50).mean()
@@ -34,6 +37,8 @@ def calculate_indicators(df):
         df['ADX'] = calculate_adx(df)
 
 def calculate_adx(df, period=14):
+    if len(df) < period:
+        return pd.Series(index=df.index)  # Return empty series for insufficient data
     high = df['High']
     low = df['Low']
     close = df['Close']
@@ -61,10 +66,12 @@ def fetch_real_market_data():
         for ticker in ticker_list:
             try:
                 data = yf.download(ticker, period="1mo", interval="1d")
-                if not data.empty:
+                if not data.empty and 'Close' in data.columns:
                     data['RSI'] = calculate_rsi(data['Close'])
                     calculate_indicators(data)
                     market_data[market_type][ticker] = data
+                else:
+                    st.warning(f"Insufficient data for {ticker}. Skipping...")
             except Exception as e:
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
@@ -75,11 +82,11 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
     for market_type, tickers in market_data.items():
         actionable_recs[market_type] = []
         for ticker, df in tickers.items():
-            if 'RSI' in df.columns and 'Close' in df.columns:
+            if 'RSI' in df.columns and 'Close' in df.columns and not df.empty:
                 rsi = df['RSI'].iloc[-1]
                 macd = df['MACD'].iloc[-1]
                 signal = df['Signal'].iloc[-1]
-                price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
+                price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] if len(df) > 1 else 0
                 bb_upper = df['BB_upper'].iloc[-1]
                 bb_lower = df['BB_lower'].iloc[-1]
                 close = df['Close'].iloc[-1]
@@ -99,17 +106,6 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                 elif rsi > 70:
                     actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
     return actionable_recs
-
-# Visualize Metrics
-def visualize_enhanced_metrics(df, ticker):
-    if not df.empty:
-        st.subheader(f"{ticker} Metrics")
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.plot(df.index, df['Close'], label="Close Price", linewidth=2)
-        if 'BB_upper' in df.columns and 'BB_lower' in df.columns:
-            ax.plot(df.index, df['BB_upper'], label="BB Upper", linestyle="--", color="red")
-            ax.plot(df.index, df['BB_lower'], label="BB Lower", linestyle="--", color="green")
-        st.pyplot(fig)
 
 # Display Recommendations
 def display_actionable_recommendations(actionable_recs):
@@ -131,7 +127,3 @@ market_data = fetch_real_market_data()
 actionable_recs = generate_actionable_recommendations(market_data, rsi_threshold, price_change_threshold)
 
 display_actionable_recommendations(actionable_recs)
-
-for market_type, tickers in market_data.items():
-    for ticker, df in tickers.items():
-        visualize_enhanced_metrics(df, ticker)
