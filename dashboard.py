@@ -4,9 +4,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import yfinance as yf
 
-# Recommendations and Alerts (Static for Now)
-recommendations = {'stocks': ['AAPL', 'MSFT'], 'crypto': ['BTC-USD']}
-advanced_alerts = {'Trend Reversal': ['AAPL - Bullish Reversal'], 'Overbought/Oversold': ['BTC-USD - Overbought']}
+# RSI Calculation
+def calculate_rsi(series, period=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
 
 # Fetch Real Market Data
 def fetch_real_market_data():
@@ -27,22 +31,7 @@ def fetch_real_market_data():
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
 
-# RSI Calculation
-def calculate_rsi(series, period=14):
-    delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-    rs = gain / loss
-    return 100 - (100 / (1 + rs))
-
-# Fetch data dynamically
-market_data = fetch_real_market_data()
-
-# Debugging (Optional)
-st.header("Debugging: Market Data Content")
-st.write(market_data)
-
-# Dashboard Functions
+# Reconcile Recommendations
 def reconcile_recommendations(recommendations, advanced_alerts):
     reconciled = {}
     for market_type, tickers in recommendations.items():
@@ -53,8 +42,15 @@ def reconcile_recommendations(recommendations, advanced_alerts):
                 reconciled[market_type].append(ticker)
     return reconciled
 
+# Recommendations and Alerts (Static for Now)
+recommendations = {'stocks': ['AAPL', 'MSFT'], 'crypto': ['BTC-USD']}
+advanced_alerts = {'Trend Reversal': ['AAPL - Bullish Reversal'], 'Overbought/Oversold': ['BTC-USD - Overbought']}
+
+# Fetch data dynamically
+market_data = fetch_real_market_data()
 reconciled_recommendations = reconcile_recommendations(recommendations, advanced_alerts)
 
+# Dashboard Functions
 def display_dashboard(reconciled_recommendations, advanced_alerts):
     st.title("Investment Insights Dashboard")
     st.header("Actionable Recommendations")
