@@ -41,6 +41,8 @@ def validate_data(df, required_columns):
 # Fetch Real Market Data
 import time
 
+import time
+
 def fetch_real_market_data():
     """Fetch market data for multiple tickers."""
     tickers = {
@@ -57,10 +59,10 @@ def fetch_real_market_data():
         for ticker in ticker_list:
             for attempt in range(3):  # Retry up to 3 times
                 try:
-                    # Fetch data
-                    data = yf.download(ticker, period="9mo", interval="1d")
+                    # Fetch data for a single ticker explicitly
+                    data = yf.download(ticker, period="9mo", interval="1d", group_by='ticker')
 
-                    # Debug: Check if data is empty
+                    # Debug: Print raw data
                     st.write(f"Raw data for {ticker} on attempt {attempt + 1}:")
                     st.write(data)
 
