@@ -33,7 +33,6 @@ def calculate_indicators(df):
         # ADX
         df['ADX'] = calculate_adx(df)
 
-
 def calculate_adx(df, period=14):
     high = df['High']
     low = df['Low']
