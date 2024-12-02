@@ -58,8 +58,8 @@ def visualize_enhanced_metrics(df, ticker):
         ax.set_ylabel("Close Price")
         
         # Dynamic y-axis scaling for Close Price
-        price_min = df['Close'].min()
-        price_max = df['Close'].max()
+        price_min = float(df['Close'].min())  # Convert to scalar
+        price_max = float(df['Close'].max())  # Convert to scalar
         price_range = price_max - price_min
         
         if price_range == 0:  # Handle constant Close prices
