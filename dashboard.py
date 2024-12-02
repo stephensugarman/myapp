@@ -36,7 +36,7 @@ def validate_data(df, required_columns):
     if len(df) < 2:
         return False
     for col in required_columns:
-        if col not in df.columns or df[col].isna().iloc[-2:].any():
+        if col not in df.columns or df[col].iloc[-2:].isna().any():
             return False
     return True
 
@@ -89,9 +89,9 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     price_change = 0
 
                 # Indicators
-                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
-                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
-                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
+                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns and not df['MACD'].isna().iloc[-1] else None
+                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns and not df['Signal'].isna().iloc[-1] else None
+                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns and not df['BB_lower'].isna().iloc[-1] else None
 
                 # Scoring Logic
                 score = 0
@@ -101,7 +101,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     score += 1
                 if macd is not None and signal is not None and macd > signal:
                     score += 1
-                if bb_lower is not None and last_close < bb_lower:
+                if bb_lower is not None and pd.notna(last_close) and last_close < bb_lower:
                     score += 1
 
                 # Add Recommendation
