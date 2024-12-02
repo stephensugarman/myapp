@@ -34,7 +34,7 @@ def fetch_real_market_data():
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
 
-# Generate Actionable Recommendations
+# Generate Actionable Recommendations with Prioritization
 def generate_actionable_recommendations(market_data, rsi_threshold=30, price_change_threshold=0.01):
     actionable_recs = {}
     for market_type, tickers in market_data.items():
@@ -43,12 +43,34 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
             if 'RSI' in df.columns and 'Close' in df.columns:
                 rsi = df['RSI'].iloc[-1]
                 price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
-                if rsi < rsi_threshold and price_change > price_change_threshold:
-                    actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}, Price Change: {price_change:.2%}")
-                elif rsi < 70:  # Include less strict conditions for potential buys
-                    actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {rsi:.2f}, Stable conditions")
+                volume_change = (
+                    (df['Volume'].iloc[-1] - df['Volume'].iloc[-2]) / df['Volume'].iloc[-2]
+                    if 'Volume' in df.columns and df['Volume'].iloc[-2] > 0
+                    else 0
+                )
+
+                # Assign a score based on RSI, price change, and volume
+                score = 0
+                if rsi < rsi_threshold:
+                    score += 2  # Strong Buy signal
+                elif rsi < 70:
+                    score += 1  # Potential Buy
+                if price_change > price_change_threshold:
+                    score += 1
+                if volume_change > 0.1:  # Significant volume increase
+                    score += 1
+
+                # Add recommendation based on score
+                if score >= 4:
+                    actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}, Price Change: {price_change:.2%}, Volume Change: {volume_change:.2%}")
+                elif score >= 2:
+                    actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {rsi:.2f}, Price Change: {price_change:.2%}, Volume Change: {volume_change:.2%}")
                 elif rsi > 70:
                     actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
+
+    # Prioritize top 3 recommendations per category
+    for market_type, recs in actionable_recs.items():
+        actionable_recs[market_type] = sorted(recs, key=lambda x: x.count("📈"), reverse=True)[:3]
     return actionable_recs
 
 # Visualize Enhanced Metrics
