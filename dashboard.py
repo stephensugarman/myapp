@@ -83,29 +83,46 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
         actionable_recs[market_type] = []
         for ticker, df in tickers.items():
             if 'RSI' in df.columns and 'Close' in df.columns and not df.empty:
+                # Calculate RSI, MACD, and other indicators
                 rsi = df['RSI'].iloc[-1]
-                macd = df['MACD'].iloc[-1]
-                signal = df['Signal'].iloc[-1]
-                price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2] if len(df) > 1 else 0
-                bb_upper = df['BB_upper'].iloc[-1]
-                bb_lower = df['BB_lower'].iloc[-1]
+                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
+                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
+                bb_upper = df['BB_upper'].iloc[-1] if 'BB_upper' in df.columns else None
+                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
                 close = df['Close'].iloc[-1]
+                
+                # Calculate price change safely
+                if len(df) > 1:
+                    price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
+                else:
+                    price_change = 0  # Default to 0 if not enough data
                 
                 # Scoring logic
                 score = 0
-                if rsi < rsi_threshold: score += 2
-                if price_change > price_change_threshold: score += 1
-                if macd > signal: score += 1
-                if close < bb_lower: score += 1
+                if rsi < rsi_threshold:
+                    score += 2
+                if price_change > price_change_threshold:
+                    score += 1
+                if macd is not None and signal is not None and macd > signal:
+                    score += 1
+                if bb_lower is not None and close < bb_lower:
+                    score += 1
                 
-                # Add recommendation
+                # Add recommendation based on score
                 if score >= 4:
-                    actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}, MACD above Signal, Price near BB_lower")
+                    actionable_recs[market_type].append(
+                        f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}, MACD above Signal, Price near BB_lower"
+                    )
                 elif score >= 2:
-                    actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {rsi:.2f}, Moderate conditions")
+                    actionable_recs[market_type].append(
+                        f"{ticker}: 🤔 Potential Buy - RSI: {rsi:.2f}, Moderate conditions"
+                    )
                 elif rsi > 70:
-                    actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
+                    actionable_recs[market_type].append(
+                        f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}"
+                    )
     return actionable_recs
+
 
 # Display Recommendations
 def display_actionable_recommendations(actionable_recs):
