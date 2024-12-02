@@ -28,14 +28,17 @@ def calculate_indicators(df):
         df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
         df['Signal'] = df['MACD'].ewm(span=9).mean()
 
-# Safe Access Helper
-def safe_access(df, column):
-    """Safely access the last two rows of a DataFrame column."""
-    if column not in df.columns or len(df) < 2:
-        return None, None
-    prev_value = df[column].iloc[-2]
-    last_value = df[column].iloc[-1]
-    return prev_value, last_value
+# Validate DataFrame for Analysis
+def validate_data(df, required_columns):
+    """Ensure the DataFrame is valid for analysis."""
+    if df is None or df.empty:
+        return False
+    if len(df) < 2:
+        return False
+    for col in required_columns:
+        if col not in df.columns or df[col].isna().iloc[-2:].any():
+            return False
+    return True
 
 # Fetch Real Market Data
 def fetch_real_market_data():
@@ -70,17 +73,20 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
         actionable_recs[market_type] = []
         for ticker, df in tickers.items():
             try:
-                # Safely access data
-                prev_close, last_close = safe_access(df, 'Close')
-                _, last_rsi = safe_access(df, 'RSI')
-
-                # Validate Data
-                if prev_close is None or last_close is None or pd.isna(prev_close) or pd.isna(last_close):
-                    st.warning(f"Skipping {ticker}: Missing or insufficient data.")
+                # Validate DataFrame
+                if not validate_data(df, ['Close', 'RSI']):
+                    st.warning(f"Skipping {ticker}: Invalid or insufficient data.")
                     continue
 
+                # Safely retrieve last two Close prices and RSI
+                prev_close, last_close = df['Close'].iloc[-2], df['Close'].iloc[-1]
+                last_rsi = df['RSI'].iloc[-1]
+
                 # Safely calculate price change
-                price_change = (last_close - prev_close) / prev_close if prev_close != 0 else 0
+                if pd.notna(prev_close) and pd.notna(last_close):
+                    price_change = (last_close - prev_close) / prev_close if prev_close != 0 else 0
+                else:
+                    price_change = 0
 
                 # Indicators
                 macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
@@ -89,7 +95,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
 
                 # Scoring Logic
                 score = 0
-                if last_rsi and last_rsi < rsi_threshold:
+                if last_rsi < rsi_threshold:
                     score += 2
                 if price_change > price_change_threshold:
                     score += 1
@@ -103,7 +109,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {last_rsi:.2f}")
                 elif score >= 2:
                     actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {last_rsi:.2f}")
-                elif last_rsi and last_rsi > 70:
+                elif last_rsi > 70:
                     actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {last_rsi:.2f}")
             except Exception as e:
                 st.error(f"Error processing {ticker}: {e}")
