@@ -54,27 +54,24 @@ def fetch_real_market_data():
             try:
                 data = yf.download(ticker, period="1mo", interval="1d")
                 if not data.empty and 'Close' in data.columns:
-                    # Safely calculate indicators
-                    try:
-                        data['RSI'] = calculate_rsi(data['Close'])
-                    except Exception:
-                        data['RSI'] = None
-                    try:
-                        calculate_indicators(data)
-                    except Exception as e:
-                        st.warning(f"Failed to calculate indicators for {ticker}: {e}")
+                    # Calculate RSI
+                    data['RSI'] = calculate_rsi(data['Close'])
 
-                    # Ensure required columns are present
-                    required_cols = ['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']
+                    # Add additional indicators
+                    calculate_indicators(data)
+
+                    # Ensure all required columns exist, even if filled with NaN
+                    required_cols = ['RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']
                     for col in required_cols:
                         if col not in data.columns:
-                            data[col] = None
-                    
-                    # Drop rows with missing data in required columns
-                    data = data.dropna(subset=required_cols)
+                            data[col] = float('nan')
 
+                    # Drop rows with NaN in required columns
+                    data = data.dropna(subset=['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal'])
+
+                    # Ensure we have valid data after processing
                     if data.empty:
-                        raise ValueError(f"Insufficient valid data for {ticker} after processing.")
+                        raise ValueError(f"No valid data for {ticker} after processing.")
 
                     # Store processed data
                     market_data[market_type][ticker] = data
