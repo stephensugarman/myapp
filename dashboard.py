@@ -47,7 +47,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
     return actionable_recs
 
-# Module: Enhanced Metrics Visualization with Dynamic Scaling
+# Visualize Enhanced Metrics with Dynamic Scaling
 def visualize_enhanced_metrics(df, ticker):
     if not df.empty:
         st.subheader(f"{ticker} Metrics")
@@ -83,7 +83,6 @@ def visualize_enhanced_metrics(df, ticker):
             ax2.legend(loc="upper right")
         
         st.pyplot(fig)
-
 
 # Display Actionable Recommendations
 def display_actionable_recommendations(actionable_recs):
