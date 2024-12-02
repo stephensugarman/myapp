@@ -6,6 +6,7 @@ import yfinance as yf
 
 # RSI Calculation
 def calculate_rsi(series, period=14):
+    """Calculate the Relative Strength Index (RSI)."""
     if len(series) < period:
         return pd.Series([None] * len(series), index=series.index)  # Return NaNs for insufficient data
     delta = series.diff()
@@ -17,6 +18,7 @@ def calculate_rsi(series, period=14):
 
 # Additional Indicators
 def calculate_indicators(df):
+    """Calculate additional indicators for the DataFrame."""
     if 'Close' in df.columns and not df.empty:
         df['MA20'] = df['Close'].rolling(window=20).mean()
         df['MA50'] = df['Close'].rolling(window=50).mean()
@@ -29,15 +31,17 @@ def calculate_indicators(df):
 
 # Validate DataFrame for Analysis
 def is_valid_for_analysis(df, required_columns):
-    if df is None or df.empty:
+    """Check if the DataFrame has enough rows and valid data for analysis."""
+    if df is None or df.empty or len(df) < 2:
         return False
     for col in required_columns:
         if col not in df.columns or df[col].isna().iloc[-2:].any():
             return False
-    return len(df) >= 2
+    return True
 
 # Fetch Real Market Data
 def fetch_real_market_data():
+    """Fetch market data for multiple tickers."""
     tickers = {
         'stocks': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA'],
         'crypto': ['BTC-USD', 'ETH-USD', 'XRP-USD', 'LTC-USD', 'USDT-USD'],
@@ -62,17 +66,20 @@ def fetch_real_market_data():
 
 # Generate Recommendations
 def generate_actionable_recommendations(market_data, rsi_threshold=30, price_change_threshold=0.01):
+    """Generate actionable recommendations based on indicators."""
     actionable_recs = {}
     for market_type, tickers in market_data.items():
         actionable_recs[market_type] = []
         for ticker, df in tickers.items():
             try:
+                # Validate DataFrame
                 if not is_valid_for_analysis(df, ['Close', 'RSI']):
                     st.warning(f"Skipping {ticker}: Insufficient valid data for analysis.")
                     continue
 
-                # Calculate price change
-                price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
+                # Safely calculate price change
+                close_diff = df['Close'].iloc[-1] - df['Close'].iloc[-2]
+                price_change = close_diff / df['Close'].iloc[-2] if df['Close'].iloc[-2] != 0 else 0
 
                 # Retrieve indicator values
                 rsi = df['RSI'].iloc[-1]
@@ -106,6 +113,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
 
 # Display Recommendations
 def display_actionable_recommendations(actionable_recs):
+    """Display actionable recommendations."""
     st.header("Actionable Recommendations")
     for market_type, recommendations in actionable_recs.items():
         st.subheader(market_type.capitalize())
