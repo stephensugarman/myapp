@@ -76,6 +76,13 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
         actionable_recs[market_type] = []
         for ticker, df in tickers.items():
             if 'RSI' in df.columns and 'Close' in df.columns and not df.empty:
+                # Safeguard for price change calculation
+                if len(df) > 1 and not df['Close'].isna().iloc[-2] and not pd.isna(df['Close'].iloc[-1]):
+                    price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
+                else:
+                    price_change = 0
+
+                # Indicator values
                 rsi = df['RSI'].iloc[-1]
                 macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
                 signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
@@ -83,11 +90,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                 bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
                 close = df['Close'].iloc[-1]
 
-                if len(df) > 1 and not df['Close'].isna().iloc[-2]:
-                    price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
-                else:
-                    price_change = 0
-                
+                # Scoring logic
                 score = 0
                 if rsi < rsi_threshold:
                     score += 2
@@ -98,6 +101,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                 if bb_lower is not None and close < bb_lower:
                     score += 1
                 
+                # Add recommendation
                 if score >= 4:
                     actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}")
                 elif score >= 2:
