@@ -5,7 +5,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Sample Data
+# Sample Data (Replace with real data sources)
 recommendations = {'stocks': ['AAPL', 'MSFT'], 'crypto': ['BTC-USD']}
 top_movers = {'stocks': [('AAPL', 0.05), ('MSFT', 0.04)], 'crypto': [('BTC-USD', 0.08)]}
 sector_performance = {'stocks': 0.03, 'crypto': 0.05, 'commodities': -0.02}
@@ -26,6 +26,9 @@ reconciled_recommendations = reconcile_recommendations(recommendations, advanced
 
 # Module 15: Enhance Dashboard Display
 def display_dashboard(reconciled_recommendations, advanced_alerts):
+    st.title("Investment Insights Dashboard")
+
+    # Actionable Recommendations
     st.header("Actionable Recommendations")
     for market_type, tickers in reconciled_recommendations.items():
         st.subheader(market_type.capitalize())
@@ -36,6 +39,7 @@ def display_dashboard(reconciled_recommendations, advanced_alerts):
         else:
             st.write("No recommendations.")
 
+    # Alerts and Context
     st.header("Alerts and Context")
     for alert_type, alerts in advanced_alerts.items():
         st.subheader(alert_type)
@@ -50,7 +54,13 @@ display_dashboard(reconciled_recommendations, advanced_alerts)
 # Module 16: Visualize Metrics
 def visualize_metrics(market_data, reconciled_recommendations):
     for market_type, tickers in reconciled_recommendations.items():
+        if market_type not in market_data:
+            st.warning(f"No data found for market type '{market_type}'")
+            continue
         for ticker in tickers:
+            if ticker not in market_data[market_type]:
+                st.warning(f"No data found for ticker '{ticker}' in '{market_type}'")
+                continue
             df = market_data[market_type].get(ticker)
             if isinstance(df, pd.DataFrame) and not df.empty:
                 st.subheader(f"{ticker} ({market_type.capitalize()}) Metrics")
@@ -62,7 +72,9 @@ def visualize_metrics(market_data, reconciled_recommendations):
                 ax.set_title(f"{ticker} Price and RSI Trends")
                 ax.legend(loc="upper left")
                 st.pyplot(fig)
+            else:
+                st.warning(f"No valid data to display for ticker '{ticker}' in '{market_type}'")
 
-# Placeholder: Use your actual market_data when integrating
+# Placeholder: Replace with your actual market_data
 market_data = {}
 visualize_metrics(market_data, reconciled_recommendations)
