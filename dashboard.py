@@ -45,6 +45,16 @@ def calculate_adx(df, period=14):
     adx = (abs(plus_di - minus_di) / (plus_di + minus_di)).rolling(window=period).mean() * 100
     return adx
 
+# Helper Function: Validate Data for Analysis
+def is_valid_for_analysis(df, required_columns):
+    """Check if DataFrame has enough rows and valid data for analysis."""
+    if df is None or df.empty or len(df) < 2:
+        return False
+    for col in required_columns:
+        if col not in df.columns or df[col].isna().iloc[-2:].any():
+            return False
+    return True
+
 # Fetch Real Market Data
 def fetch_real_market_data():
     tickers = {
@@ -75,39 +85,39 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
     for market_type, tickers in market_data.items():
         actionable_recs[market_type] = []
         for ticker, df in tickers.items():
-            if 'RSI' in df.columns and 'Close' in df.columns and not df.empty:
-                # Safeguard for price change calculation
-                if len(df) > 1 and not df['Close'].isna().iloc[-2] and not pd.isna(df['Close'].iloc[-1]):
-                    price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
-                else:
-                    price_change = 0
+            if not is_valid_for_analysis(df, ['Close', 'RSI']):
+                st.warning(f"Skipping {ticker}: Insufficient valid data for analysis.")
+                continue
 
-                # Indicator values
-                rsi = df['RSI'].iloc[-1]
-                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
-                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
-                bb_upper = df['BB_upper'].iloc[-1] if 'BB_upper' in df.columns else None
-                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
-                close = df['Close'].iloc[-1]
+            # Safeguard for price change calculation
+            price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
 
-                # Scoring logic
-                score = 0
-                if rsi < rsi_threshold:
-                    score += 2
-                if price_change > price_change_threshold:
-                    score += 1
-                if macd is not None and signal is not None and macd > signal:
-                    score += 1
-                if bb_lower is not None and close < bb_lower:
-                    score += 1
-                
-                # Add recommendation
-                if score >= 4:
-                    actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}")
-                elif score >= 2:
-                    actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {rsi:.2f}")
-                elif rsi > 70:
-                    actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
+            # Indicator values
+            rsi = df['RSI'].iloc[-1]
+            macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
+            signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
+            bb_upper = df['BB_upper'].iloc[-1] if 'BB_upper' in df.columns else None
+            bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
+            close = df['Close'].iloc[-1]
+
+            # Scoring logic
+            score = 0
+            if rsi < rsi_threshold:
+                score += 2
+            if price_change > price_change_threshold:
+                score += 1
+            if macd is not None and signal is not None and macd > signal:
+                score += 1
+            if bb_lower is not None and close < bb_lower:
+                score += 1
+            
+            # Add recommendation
+            if score >= 4:
+                actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}")
+            elif score >= 2:
+                actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {rsi:.2f}")
+            elif rsi > 70:
+                actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
     return actionable_recs
 
 # Display Recommendations
