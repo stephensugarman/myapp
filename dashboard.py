@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import yfinance as yf
+import matplotlib.dates as mdates
 
 # RSI Calculation
 def calculate_rsi(series, period=14):
@@ -31,70 +32,67 @@ def fetch_real_market_data():
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
 
-# Reconcile Recommendations
-def reconcile_recommendations(recommendations, advanced_alerts):
-    reconciled = {}
-    for market_type, tickers in recommendations.items():
-        reconciled[market_type] = []
-        for ticker in tickers:
-            overbought = any(alert for alert in advanced_alerts['Overbought/Oversold'] if ticker in alert and "Overbought" in alert)
-            if not overbought:
-                reconciled[market_type].append(ticker)
-    return reconciled
+# Generate Actionable Recommendations
+def generate_actionable_recommendations(market_data, rsi_threshold=30, price_change_threshold=0.01):
+    actionable_recs = {}
+    for market_type, tickers in market_data.items():
+        actionable_recs[market_type] = []
+        for ticker, df in tickers.items():
+            if 'RSI' in df.columns and 'Close' in df.columns:
+                rsi = df['RSI'].iloc[-1]
+                price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
+                if rsi < rsi_threshold and price_change > price_change_threshold:
+                    actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {rsi:.2f}, Price Change: {price_change:.2%}")
+                elif rsi > 70:
+                    actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {rsi:.2f}")
+    return actionable_recs
 
-# Recommendations and Alerts (Static for Now)
-recommendations = {'stocks': ['AAPL', 'MSFT'], 'crypto': ['BTC-USD']}
-advanced_alerts = {'Trend Reversal': ['AAPL - Bullish Reversal'], 'Overbought/Oversold': ['BTC-USD - Overbought']}
+# Visualize Enhanced Metrics
+def visualize_enhanced_metrics(df, ticker):
+    if not df.empty:
+        st.subheader(f"{ticker} Metrics")
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(df.index, df['Close'], label="Close Price")
+        if 'RSI' in df.columns:
+            ax2 = ax.twinx()
+            ax2.plot(df.index, df['RSI'], label="RSI", color="orange", linestyle="--")
+        ax.axhline(30, color="green", linestyle="--", label="RSI Oversold")
+        ax.axhline(70, color="red", linestyle="--", label="RSI Overbought")
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+        ax.xaxis.set_major_locator(mdates.WeekdayLocator())
+        fig.autofmt_xdate()
+        plt.title(f"{ticker} Price and RSI")
+        ax.legend(loc="upper left")
+        st.pyplot(fig)
 
-# Fetch data dynamically
-market_data = fetch_real_market_data()
-reconciled_recommendations = reconcile_recommendations(recommendations, advanced_alerts)
-
-# Dashboard Functions
-def display_dashboard(reconciled_recommendations, advanced_alerts):
-    st.title("Investment Insights Dashboard")
+# Display Actionable Recommendations
+def display_actionable_recommendations(actionable_recs):
     st.header("Actionable Recommendations")
-    for market_type, tickers in reconciled_recommendations.items():
+    for market_type, recommendations in actionable_recs.items():
         st.subheader(market_type.capitalize())
-        if tickers:
-            for ticker in tickers:
-                reason = "Positive sentiment and favorable price trends."
-                st.write(f"**{ticker}**: 📈 **Buy** - {reason}")
+        if recommendations:
+            for rec in recommendations:
+                st.write(rec)
         else:
             st.write("No recommendations.")
-    st.header("Alerts and Context")
-    for alert_type, alerts in advanced_alerts.items():
-        st.subheader(alert_type)
-        if alerts:
-            for alert in alerts:
-                st.write(f"- {alert}")
-        else:
-            st.write("No alerts.")
 
-display_dashboard(reconciled_recommendations, advanced_alerts)
+# Main App Logic
+st.title("Investment Insights Dashboard")
 
-def visualize_metrics(market_data, reconciled_recommendations):
-    for market_type, tickers in reconciled_recommendations.items():
-        if market_type not in market_data:
-            st.warning(f"No data found for market type '{market_type}'")
-            continue
-        for ticker in tickers:
-            if ticker not in market_data[market_type]:
-                st.warning(f"No data found for ticker '{ticker}' in '{market_type}'")
-                continue
-            df = market_data[market_type].get(ticker)
-            if isinstance(df, pd.DataFrame) and not df.empty:
-                st.subheader(f"{ticker} ({market_type.capitalize()}) Metrics")
-                fig, ax = plt.subplots()
-                ax.plot(df.index, df['Close'], label="Closing Price")
-                if 'RSI' in df.columns:
-                    ax2 = ax.twinx()
-                    ax2.plot(df.index, df['RSI'], color='orange', label="RSI")
-                ax.set_title(f"{ticker} Price and RSI Trends")
-                ax.legend(loc="upper left")
-                st.pyplot(fig)
-            else:
-                st.warning(f"No valid data to display for ticker '{ticker}' in '{market_type}'")
+# Sidebar Controls
+rsi_threshold = st.sidebar.slider("RSI Threshold for Buy", min_value=10, max_value=50, value=30)
+price_change_threshold = st.sidebar.slider("Price Change Threshold (%)", min_value=0.01, max_value=0.1, value=0.01, step=0.01)
 
-visualize_metrics(market_data, reconciled_recommendations)
+# Fetch Market Data
+market_data = fetch_real_market_data()
 
+# Generate Recommendations
+actionable_recs = generate_actionable_recommendations(market_data, rsi_threshold, price_change_threshold)
+
+# Display Recommendations
+display_actionable_recommendations(actionable_recs)
+
+# Visualize Metrics
+for market_type, tickers in market_data.items():
+    for ticker, df in tickers.items():
+        visualize_enhanced_metrics(df, ticker)
