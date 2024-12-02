@@ -1,35 +1,33 @@
-# dashboard.py
-
 # Import Libraries
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import yfinance as yf
 
-# Real Data Fetching (Replace this with your actual data-fetching logic)
+# Recommendations and Alerts (Static for Now)
+recommendations = {'stocks': ['AAPL', 'MSFT'], 'crypto': ['BTC-USD']}
+advanced_alerts = {'Trend Reversal': ['AAPL - Bullish Reversal'], 'Overbought/Oversold': ['BTC-USD - Overbought']}
+
+# Fetch Real Market Data
 def fetch_real_market_data():
-    # Replace this with your actual implementation
-    # Example using yfinance for demonstration purposes
-    import yfinance as yf
-    
     tickers = {
         'stocks': ['AAPL', 'MSFT'],
         'crypto': ['BTC-USD']
     }
     market_data = {}
-    
     for market_type, ticker_list in tickers.items():
         market_data[market_type] = {}
         for ticker in ticker_list:
             try:
                 data = yf.download(ticker, period="1mo", interval="1d")
                 if not data.empty:
-                    data['RSI'] = calculate_rsi(data['Close'])  # Assuming an RSI calculation function exists
+                    data['RSI'] = calculate_rsi(data['Close'])
                     market_data[market_type][ticker] = data
             except Exception as e:
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
 
-# Example RSI Calculation Function
+# RSI Calculation
 def calculate_rsi(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -37,8 +35,14 @@ def calculate_rsi(series, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
+# Fetch data dynamically
+market_data = fetch_real_market_data()
 
-# Module 14: Reconcile Recommendations
+# Debugging (Optional)
+st.header("Debugging: Market Data Content")
+st.write(market_data)
+
+# Dashboard Functions
 def reconcile_recommendations(recommendations, advanced_alerts):
     reconciled = {}
     for market_type, tickers in recommendations.items():
@@ -51,22 +55,17 @@ def reconcile_recommendations(recommendations, advanced_alerts):
 
 reconciled_recommendations = reconcile_recommendations(recommendations, advanced_alerts)
 
-# Module 15: Enhance Dashboard Display
 def display_dashboard(reconciled_recommendations, advanced_alerts):
     st.title("Investment Insights Dashboard")
-
-    # Actionable Recommendations
     st.header("Actionable Recommendations")
     for market_type, tickers in reconciled_recommendations.items():
         st.subheader(market_type.capitalize())
         if tickers:
             for ticker in tickers:
-                reason = f"Positive sentiment and favorable price trends."
+                reason = "Positive sentiment and favorable price trends."
                 st.write(f"**{ticker}**: 📈 **Buy** - {reason}")
         else:
             st.write("No recommendations.")
-
-    # Alerts and Context
     st.header("Alerts and Context")
     for alert_type, alerts in advanced_alerts.items():
         st.subheader(alert_type)
@@ -78,7 +77,6 @@ def display_dashboard(reconciled_recommendations, advanced_alerts):
 
 display_dashboard(reconciled_recommendations, advanced_alerts)
 
-# Module 16: Visualize Metrics
 def visualize_metrics(market_data, reconciled_recommendations):
     for market_type, tickers in reconciled_recommendations.items():
         if market_type not in market_data:
@@ -103,3 +101,4 @@ def visualize_metrics(market_data, reconciled_recommendations):
                 st.warning(f"No valid data to display for ticker '{ticker}' in '{market_type}'")
 
 visualize_metrics(market_data, reconciled_recommendations)
+
