@@ -59,18 +59,22 @@ def fetch_real_market_data():
                 try:
                     # Fetch data
                     data = yf.download(ticker, period="9mo", interval="1d")
-                    
-                    # Debug: Print raw data
-                    st.write(f"Raw data for {ticker}:")
+
+                    # Debug: Check if data is empty
+                    st.write(f"Raw data for {ticker} on attempt {attempt + 1}:")
                     st.write(data)
 
                     if data.empty or 'Close' not in data.columns:
                         if attempt < 2:
                             st.warning(f"{ticker}: Missing 'Close' data. Retrying... ({attempt + 1}/3)")
-                            time.sleep(1)  # Delay before retrying
+                            time.sleep(2)  # Delay before retrying
                             continue
                         else:
                             raise ValueError(f"{ticker}: Missing 'Close' data after 3 attempts.")
+
+                    # Validate data content
+                    if data['Close'].isnull().all():
+                        raise ValueError(f"{ticker}: All 'Close' values are NaN or invalid.")
 
                     # Calculate RSI
                     try:
@@ -110,7 +114,6 @@ def fetch_real_market_data():
                         st.warning(f"Failed to fetch data for {ticker}: {e}")
 
     return market_data
-
 
 
 # Generate Recommendations
