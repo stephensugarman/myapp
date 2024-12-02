@@ -8,7 +8,7 @@ import matplotlib.dates as mdates
 # RSI Calculation
 def calculate_rsi(series, period=14):
     if len(series) < period:
-        return pd.Series(index=series.index)  # Return an empty series for insufficient data
+        return pd.Series([None] * len(series), index=series.index)  # Return NaNs for insufficient data
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
@@ -31,7 +31,7 @@ def calculate_indicators(df):
 
 def calculate_adx(df, period=14):
     if len(df) < period:
-        return pd.Series(index=df.index)  # Return empty series for insufficient data
+        return pd.Series([None] * len(df), index=df.index)  # Return NaNs for insufficient data
     high = df['High']
     low = df['Low']
     close = df['Close']
@@ -69,7 +69,7 @@ def fetch_real_market_data():
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
 
-# Updated Recommendations Logic
+# Generate Recommendations
 def generate_actionable_recommendations(market_data, rsi_threshold=30, price_change_threshold=0.01):
     actionable_recs = {}
     for market_type, tickers in market_data.items():
@@ -82,8 +82,8 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                 bb_upper = df['BB_upper'].iloc[-1] if 'BB_upper' in df.columns else None
                 bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
                 close = df['Close'].iloc[-1]
-                
-                if len(df) > 1:
+
+                if len(df) > 1 and not df['Close'].isna().iloc[-2]:
                     price_change = (df['Close'].iloc[-1] - df['Close'].iloc[-2]) / df['Close'].iloc[-2]
                 else:
                     price_change = 0
@@ -126,5 +126,3 @@ market_data = fetch_real_market_data()
 actionable_recs = generate_actionable_recommendations(market_data, rsi_threshold, price_change_threshold)
 
 display_actionable_recommendations(actionable_recs)
-
-
