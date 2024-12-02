@@ -31,9 +31,7 @@ def calculate_indicators(df):
 # Validate DataFrame for Analysis
 def validate_data(df, required_columns):
     """Ensure the DataFrame is valid for analysis."""
-    if df is None or df.empty:
-        return False
-    if len(df) < 2:
+    if df is None or df.empty or len(df) < 2:
         return False
     for col in required_columns:
         if col not in df.columns or df[col].iloc[-2:].isna().any():
@@ -58,6 +56,7 @@ def fetch_real_market_data():
                 if not data.empty and 'Close' in data.columns:
                     data['RSI'] = calculate_rsi(data['Close'])
                     calculate_indicators(data)
+                    data = data.dropna(subset=['RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal'])
                     market_data[market_type][ticker] = data
                 else:
                     st.warning(f"Insufficient data for {ticker}. Skipping...")
@@ -78,21 +77,16 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     st.warning(f"Skipping {ticker}: Invalid or insufficient data.")
                     continue
 
-                # Safely retrieve last two Close prices and RSI
+                # Retrieve scalar values
                 prev_close = df['Close'].iloc[-2]
                 last_close = df['Close'].iloc[-1]
                 last_rsi = df['RSI'].iloc[-1]
+                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
+                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
+                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
 
                 # Safely calculate price change
-                if pd.notna(prev_close) and pd.notna(last_close):
-                    price_change = (last_close - prev_close) / prev_close if prev_close != 0 else 0
-                else:
-                    price_change = 0
-
-                # Indicators
-                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns and pd.notna(df['MACD'].iloc[-1]) else None
-                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns and pd.notna(df['Signal'].iloc[-1]) else None
-                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns and pd.notna(df['BB_lower'].iloc[-1]) else None
+                price_change = (last_close - prev_close) / prev_close if pd.notna(prev_close) and pd.notna(last_close) else 0
 
                 # Scoring Logic
                 score = 0
