@@ -16,8 +16,10 @@ def calculate_rsi(series, period=14):
 # Fetch Real Market Data
 def fetch_real_market_data():
     tickers = {
-        'stocks': ['AAPL', 'MSFT'],
-        'crypto': ['BTC-USD']
+        'stocks': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA'],
+        'crypto': ['BTC-USD', 'ETH-USD', 'XRP-USD', 'LTC-USD', 'USDT-USD'],
+        'commodities': ['GC=F', 'SI=F', 'CL=F', 'NG=F'],
+        'bonds': ['^TNX', '^IRX', '^FVX', '^TYX']
     }
     market_data = {}
     for market_type, ticker_list in tickers.items():
