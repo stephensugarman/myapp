@@ -5,31 +5,38 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Sample Data (Replace with real data sources)
-recommendations = {'stocks': ['AAPL', 'MSFT'], 'crypto': []}
-top_movers = {'stocks': [('AAPL', 0.05), ('MSFT', 0.04)], 'crypto': [('BTC-USD', 0.08)]}
-sector_performance = {'stocks': 0.03, 'crypto': 0.05, 'commodities': -0.02}
-advanced_alerts = {'Trend Reversal': ['AAPL - Bullish Reversal'], 'Overbought/Oversold': ['BTC-USD - Overbought']}
-
-# Test Data for market_data
-market_data = {
-    'stocks': {
-        'AAPL': pd.DataFrame({
-            'Close': [150, 152, 154],
-            'RSI': [45, 50, 55]
-        }, index=pd.date_range("2024-11-01", periods=3)),
-        'MSFT': pd.DataFrame({
-            'Close': [300, 305, 310],
-            'RSI': [60, 65, 70]
-        }, index=pd.date_range("2024-11-01", periods=3))
-    },
-    'crypto': {
-        'BTC-USD': pd.DataFrame({
-            'Close': [50000, 51000, 52000],
-            'RSI': [72, 75, 78]
-        }, index=pd.date_range("2024-11-01", periods=3))
+# Real Data Fetching (Replace this with your actual data-fetching logic)
+def fetch_real_market_data():
+    # Replace this with your actual implementation
+    # Example using yfinance for demonstration purposes
+    import yfinance as yf
+    
+    tickers = {
+        'stocks': ['AAPL', 'MSFT'],
+        'crypto': ['BTC-USD']
     }
-}
+    market_data = {}
+    
+    for market_type, ticker_list in tickers.items():
+        market_data[market_type] = {}
+        for ticker in ticker_list:
+            try:
+                data = yf.download(ticker, period="1mo", interval="1d")
+                if not data.empty:
+                    data['RSI'] = calculate_rsi(data['Close'])  # Assuming an RSI calculation function exists
+                    market_data[market_type][ticker] = data
+            except Exception as e:
+                st.warning(f"Failed to fetch data for {ticker}: {e}")
+    return market_data
+
+# Example RSI Calculation Function
+def calculate_rsi(series, period=14):
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
+
 
 # Module 14: Reconcile Recommendations
 def reconcile_recommendations(recommendations, advanced_alerts):
