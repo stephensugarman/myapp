@@ -54,27 +54,25 @@ def fetch_real_market_data():
         market_data[market_type] = {}
         for ticker in ticker_list:
             try:
-                # Fetch data
-                data = yf.download(ticker, period="1mo", interval="1d")
+                # Fetch data (extended range for robust indicator calculations)
+                data = yf.download(ticker, period="3mo", interval="1d")
                 if data.empty or 'Close' not in data.columns:
                     st.warning(f"{ticker}: Missing 'Close' data. Skipping...")
                     continue
 
-                # Add RSI
+                # Calculate RSI and indicators
                 data['RSI'] = calculate_rsi(data['Close'])
-
-                # Add additional indicators
                 calculate_indicators(data)
 
-                # Ensure all required columns exist
+                # Ensure required columns exist and fill missing ones with NaN
                 for col in required_cols:
                     if col not in data.columns:
                         data[col] = float('nan')
 
-                # Drop initial rows with NaNs (warm-up period for indicators)
-                data = data.iloc[max(14, 20):].dropna(subset=required_cols)
+                # Drop rows with NaNs in required columns after warm-up
+                data = data.iloc[20:].dropna(subset=required_cols)
 
-                # If no valid rows remain, skip the ticker
+                # Skip ticker if no valid rows remain
                 if data.empty:
                     st.warning(f"{ticker}: No valid rows after processing. Skipping...")
                     continue
@@ -85,6 +83,7 @@ def fetch_real_market_data():
             except Exception as e:
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
+
 
 
 # Generate Recommendations
