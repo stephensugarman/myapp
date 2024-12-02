@@ -35,7 +35,7 @@ def is_valid_for_analysis(df, required_columns):
     if df is None or df.empty or len(df) < 2:
         return False
     for col in required_columns:
-        if col not in df.columns or df[col].isna().iloc[-2:].any():
+        if col not in df.columns or df[col].iloc[-2:].isna().any():
             return False
     return True
 
@@ -78,8 +78,11 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                     continue
 
                 # Safely calculate price change
-                close_diff = df['Close'].iloc[-1] - df['Close'].iloc[-2]
-                price_change = close_diff / df['Close'].iloc[-2] if df['Close'].iloc[-2] != 0 else 0
+                if len(df) >= 2:
+                    close_diff = df['Close'].iloc[-1] - df['Close'].iloc[-2]
+                    price_change = close_diff / df['Close'].iloc[-2] if df['Close'].iloc[-2] != 0 else 0
+                else:
+                    price_change = 0
 
                 # Retrieve indicator values
                 rsi = df['RSI'].iloc[-1]
