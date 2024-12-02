@@ -57,21 +57,26 @@ def fetch_real_market_data():
                     # Calculate indicators
                     data['RSI'] = calculate_rsi(data['Close'])
                     calculate_indicators(data)
-                    
-                    # Drop rows with insufficient data for critical indicators
-                    required_cols = ['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']
-                    data = data.dropna(subset=required_cols, how='any')
 
+                    # Ensure all required columns exist
+                    missing_columns = [col for col in ['RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal'] if col not in data.columns]
+                    if missing_columns:
+                        raise ValueError(f"Missing columns: {missing_columns}")
+                    
+                    # Drop rows with missing required values
+                    data = data.dropna(subset=['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal'])
+                    
                     if data.empty:
-                        raise ValueError(f"Insufficient data after processing for {ticker}.")
+                        raise ValueError(f"Insufficient valid data for {ticker} after processing.")
                     
                     # Store processed data
                     market_data[market_type][ticker] = data
                 else:
-                    raise ValueError(f"Insufficient data for {ticker}.")
+                    raise ValueError(f"Insufficient raw data for {ticker}.")
             except Exception as e:
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
+
 
 
 # Generate Recommendations
