@@ -7,7 +7,7 @@ import yfinance as yf
 def calculate_rsi(series, period=14):
     """Calculate the Relative Strength Index (RSI)."""
     if len(series) < period:
-        return pd.Series([None] * len(series), index=series.index)  # Return NaNs for insufficient data
+        return pd.Series([None] * len(series), index=series.index)
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
@@ -28,12 +28,14 @@ def calculate_indicators(df):
         df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
         df['Signal'] = df['MACD'].ewm(span=9).mean()
 
-# Helper Function: Safe Access
-def safe_access(df, key):
+# Safe Access Helper
+def safe_access(df, column):
     """Safely access the last two rows of a DataFrame column."""
-    if key not in df.columns or len(df) < 2:
+    if column not in df.columns or len(df) < 2:
         return None, None
-    return df[key].iloc[-2], df[key].iloc[-1]
+    prev_value = df[column].iloc[-2]
+    last_value = df[column].iloc[-1]
+    return prev_value, last_value
 
 # Fetch Real Market Data
 def fetch_real_market_data():
@@ -68,26 +70,26 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
         actionable_recs[market_type] = []
         for ticker, df in tickers.items():
             try:
-                # Safely access the required data
+                # Safely access data
                 prev_close, last_close = safe_access(df, 'Close')
-                last_rsi = df['RSI'].iloc[-1] if 'RSI' in df.columns and len(df) > 0 else None
+                _, last_rsi = safe_access(df, 'RSI')
 
-                # Validate data
+                # Validate Data
                 if prev_close is None or last_close is None or pd.isna(prev_close) or pd.isna(last_close):
-                    st.warning(f"Skipping {ticker}: Insufficient data for analysis.")
+                    st.warning(f"Skipping {ticker}: Missing or insufficient data.")
                     continue
 
                 # Safely calculate price change
                 price_change = (last_close - prev_close) / prev_close if prev_close != 0 else 0
 
-                # Indicator values
+                # Indicators
                 macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
                 signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
                 bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
 
-                # Scoring logic
+                # Scoring Logic
                 score = 0
-                if last_rsi is not None and last_rsi < rsi_threshold:
+                if last_rsi and last_rsi < rsi_threshold:
                     score += 2
                 if price_change > price_change_threshold:
                     score += 1
@@ -96,7 +98,7 @@ def generate_actionable_recommendations(market_data, rsi_threshold=30, price_cha
                 if bb_lower is not None and last_close < bb_lower:
                     score += 1
 
-                # Add recommendation
+                # Add Recommendation
                 if score >= 4:
                     actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {last_rsi:.2f}")
                 elif score >= 2:
