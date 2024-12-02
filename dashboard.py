@@ -54,21 +54,28 @@ def fetch_real_market_data():
             try:
                 data = yf.download(ticker, period="1mo", interval="1d")
                 if not data.empty and 'Close' in data.columns:
-                    # Calculate indicators
-                    data['RSI'] = calculate_rsi(data['Close'])
-                    calculate_indicators(data)
+                    # Safely calculate indicators
+                    try:
+                        data['RSI'] = calculate_rsi(data['Close'])
+                    except Exception:
+                        data['RSI'] = None
+                    try:
+                        calculate_indicators(data)
+                    except Exception as e:
+                        st.warning(f"Failed to calculate indicators for {ticker}: {e}")
 
-                    # Ensure all required columns exist
-                    missing_columns = [col for col in ['RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal'] if col not in data.columns]
-                    if missing_columns:
-                        raise ValueError(f"Missing columns: {missing_columns}")
+                    # Ensure required columns are present
+                    required_cols = ['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']
+                    for col in required_cols:
+                        if col not in data.columns:
+                            data[col] = None
                     
-                    # Drop rows with missing required values
-                    data = data.dropna(subset=['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal'])
-                    
+                    # Drop rows with missing data in required columns
+                    data = data.dropna(subset=required_cols)
+
                     if data.empty:
                         raise ValueError(f"Insufficient valid data for {ticker} after processing.")
-                    
+
                     # Store processed data
                     market_data[market_type][ticker] = data
                 else:
@@ -76,7 +83,6 @@ def fetch_real_market_data():
             except Exception as e:
                 st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
-
 
 
 # Generate Recommendations
