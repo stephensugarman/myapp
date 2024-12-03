@@ -15,9 +15,8 @@ def calculate_rsi(series, period=14):
 
 # Define additional indicators
 def calculate_indicators(data):
-    """Add Bollinger Bands, Moving Averages, and MACD indicators."""
+    """Add Bollinger Bands and MACD indicators."""
     data['MA20'] = data['Close'].rolling(window=20).mean()
-    data['MA50'] = data['Close'].rolling(window=50).mean()
     rolling_mean = data['Close'].rolling(window=20).mean()
     rolling_std = data['Close'].rolling(window=20).std()
     data['BB_upper'] = rolling_mean + (2 * rolling_std)
@@ -27,7 +26,7 @@ def calculate_indicators(data):
 
 # Fetch and validate data
 def fetch_data(ticker, period="6mo", interval="1d"):
-    """Fetch stock data with validation and dynamic column matching."""
+    """Fetch stock data and validate columns."""
     try:
         data = yf.download(ticker, period=period, interval=interval, group_by="ticker")
         if isinstance(data.columns, pd.MultiIndex):
@@ -35,32 +34,29 @@ def fetch_data(ticker, period="6mo", interval="1d"):
 
         close_column = [col for col in data.columns if 'close' in col.lower()]
         if not close_column:
-            st.error(f"No 'Close' column found in {ticker} data.")
             return None
         else:
             data.rename(columns={close_column[0]: 'Close'}, inplace=True)
 
         if data['Close'].isnull().all():
-            st.error(f"The 'Close' column for {ticker} contains only null values.")
             return None
 
         return data
-    except Exception as e:
-        st.error(f"Error fetching data for {ticker}: {e}")
+    except Exception:
         return None
 
 # Generate actionable insights
-def generate_insights(data):
-    """Generate actionable insights based on RSI and Bollinger Bands."""
+def generate_insights(ticker, data):
+    """Generate insights for a specific ticker."""
     insights = []
     if data['RSI'].iloc[-1] < 30:
-        insights.append("The asset is oversold. Consider buying.")
+        insights.append(f"{ticker}: RSI is below 30, indicating the asset is oversold.")
     if data['RSI'].iloc[-1] > 70:
-        insights.append("The asset is overbought. Consider selling.")
+        insights.append(f"{ticker}: RSI is above 70, indicating the asset is overbought.")
     if data['Close'].iloc[-1] < data['BB_lower'].iloc[-1]:
-        insights.append("The asset is below the lower Bollinger Band. It might be undervalued.")
+        insights.append(f"{ticker}: Price is below the lower Bollinger Band, suggesting undervaluation.")
     if data['Close'].iloc[-1] > data['BB_upper'].iloc[-1]:
-        insights.append("The asset is above the upper Bollinger Band. It might be overvalued.")
+        insights.append(f"{ticker}: Price is above the upper Bollinger Band, suggesting overvaluation.")
     return insights
 
 # Main app
@@ -83,25 +79,42 @@ categories = {
 
 category = st.selectbox("Select asset category:", list(categories.keys()))
 tickers = categories[category]
-ticker = st.selectbox("Select a ticker:", tickers)
+
+# Actionable Insights for All Tickers
+st.subheader("Actionable Insights for All Assets")
+all_insights = []
+for ticker in tickers:
+    data = fetch_data(ticker)
+    if data is not None:
+        data['RSI'] = calculate_rsi(data['Close'])
+        calculate_indicators(data)
+        insights = generate_insights(ticker, data)
+        all_insights.extend(insights)
+
+if all_insights:
+    for insight in all_insights:
+        st.write(f"- {insight}")
+else:
+    st.write("No actionable insights available.")
+
+# Detailed Analysis for Selected Ticker
+st.subheader("Detailed Analysis for Selected Asset")
+ticker = st.selectbox("Select a ticker for detailed analysis:", tickers)
 
 if ticker:
-    # Fetch data
     data = fetch_data(ticker)
-
     if data is not None:
-        # Calculate indicators
         data['RSI'] = calculate_rsi(data['Close'])
         calculate_indicators(data)
 
-        # Generate insights
-        insights = generate_insights(data)
-        st.subheader("Actionable Insights")
+        # Insights for selected ticker
+        insights = generate_insights(ticker, data)
+        st.write("### Insights")
         for insight in insights:
             st.write(f"- {insight}")
 
         # Combined Price and RSI Chart
-        st.subheader("Price and RSI Chart")
+        st.write("### Price and RSI Chart")
         fig, ax1 = plt.subplots()
 
         # Price chart
@@ -122,3 +135,5 @@ if ticker:
 
         fig.suptitle(f"{ticker} Price and RSI")
         st.pyplot(fig)
+    else:
+        st.error(f"Could not fetch data for {ticker}.")
