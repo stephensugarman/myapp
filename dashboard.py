@@ -95,19 +95,38 @@ tabs = st.tabs(["Insights", "Portfolio", "Individual Analysis"])
 with tabs[0]:
     st.subheader("Global Insights")
     tickers = ["AAPL", "MSFT", "BTC-USD", "ETH-USD"]
+    global_insights = []
+    
     for idx, ticker in enumerate(tickers):
         with st.container():
             st.write(f"Fetching data for {ticker}...")
             data = fetch_data(ticker)
+            
             if data is not None:
                 data['RSI'] = calculate_rsi(data['Close'])
                 calculate_indicators(data)
                 sentiment = fetch_sentiment(ticker)
-                st.write(f"Ticker: {ticker}")
-                st.write(f"Sentiment: {sentiment}")
-                st.plotly_chart(plot_interactive_chart(data, ticker), key=f"chart_{idx}")
-            else:
-                st.error(f"Failed to fetch data for {ticker}.")
+
+                # Collect actionable insights
+                insights = []
+                if data['RSI'].iloc[-1] < 30:
+                    insights.append("Oversold (RSI < 30)")
+                if data['RSI'].iloc[-1] > 70:
+                    insights.append("Overbought (RSI > 70)")
+                if data['Close'].iloc[-1] < data['BB_lower'].iloc[-1]:
+                    insights.append("Price below lower Bollinger Band")
+                if data['Close'].iloc[-1] > data['BB_upper'].iloc[-1]:
+                    insights.append("Price above upper Bollinger Band")
+
+                if insights or sentiment not in ["Neutral", "No recent news found."]:
+                    global_insights.append({"Ticker": ticker, "Insights": "; ".join(insights), "Sentiment": sentiment})
+
+    # Display filtered insights
+    if global_insights:
+        st.table(pd.DataFrame(global_insights))
+    else:
+        st.write("No actionable insights available.")
+
 
 with tabs[1]:
     st.subheader("Portfolio Tracker")
