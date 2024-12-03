@@ -46,6 +46,8 @@ import time
 import time
 import requests
 
+import time
+
 def fetch_real_market_data():
     """Fetch market data for multiple tickers."""
     tickers = {
@@ -62,38 +64,27 @@ def fetch_real_market_data():
         for ticker in ticker_list:
             for attempt in range(3):  # Retry up to 3 times
                 try:
-                    # Fetch data with yfinance
+                    # Fetch data
+                    st.write(f"Fetching data for {ticker}, attempt {attempt + 1}...")
                     data = yf.download(ticker, period="9mo", interval="1d", group_by='ticker')
 
-                    # Debugging raw data
-                    st.write(f"Raw data for {ticker} on attempt {attempt + 1}:")
+                    # Log raw data
+                    st.write(f"Raw data for {ticker}:")
                     st.write(data)
 
                     if data.empty or 'Close' not in data.columns:
                         if attempt < 2:
                             st.warning(f"{ticker}: Missing 'Close' data. Retrying... ({attempt + 1}/3)")
-                            time.sleep(2)
+                            time.sleep(2)  # Delay before retrying
                             continue
                         else:
-                            st.warning(f"{ticker}: Trying fallback fetch...")
-                            # Fallback: Use Yahoo Finance API via pandas
-                            try:
-                                url = f"https://query1.finance.yahoo.com/v7/finance/download/{ticker}?period1=0&period2=9999999999&interval=1d&events=history"
-                                fallback_data = pd.read_csv(url)
-                                st.write(f"Fallback data for {ticker}:")
-                                st.write(fallback_data)
-                                if fallback_data.empty:
-                                    raise ValueError(f"{ticker}: Fallback also failed.")
-                                else:
-                                    data = fallback_data
-                            except Exception as fallback_error:
-                                raise ValueError(f"{ticker}: Fallback fetch failed: {fallback_error}")
+                            raise ValueError(f"{ticker}: Missing 'Close' data after 3 attempts.")
 
                     # Validate data content
                     if data['Close'].isnull().all():
                         raise ValueError(f"{ticker}: All 'Close' values are NaN or invalid.")
 
-                    # Process indicators
+                    # Calculate RSI and additional indicators
                     try:
                         data['RSI'] = calculate_rsi(data['Close'])
                         calculate_indicators(data)
@@ -107,6 +98,7 @@ def fetch_real_market_data():
                     warmup_period = max(14, 20)
                     data = data.iloc[warmup_period:].dropna(subset=required_cols)
 
+                    # Check if valid rows remain
                     if data.empty:
                         st.warning(f"{ticker}: No valid rows after processing. Skipping...")
                         continue
