@@ -4,19 +4,23 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 
-# API Key for NewsAPI
-NEWS_API_KEY = "7fba993708524695920b396056980ffb"
+# Load a comprehensive list of tickers (you can replace this with your data source)
+@st.cache
+def load_ticker_list():
+    # Example tickers for stocks, crypto, indices
+    tickers = [
+        "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BTC-USD", "ETH-USD",
+        "BNB-USD", "GC=F", "SI=F", "CL=F", "^GSPC", "^DJI", "^IXIC"
+    ]
+    # You can replace this with a CSV load or an API call to get the full list
+    return tickers
 
-# Preloaded ticker list (sample; expand as needed)
-ticker_list = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BTC-USD", "ETH-USD",
-    "BNB-USD", "GC=F", "SI=F", "CL=F", "^GSPC", "^DJI", "^IXIC"
-]
+ticker_list = load_ticker_list()
 
 # Fetch Sentiment
 def fetch_sentiment(ticker):
     try:
-        url = f"https://newsapi.org/v2/everything?q={ticker}&sortBy=publishedAt&language=en&apiKey={NEWS_API_KEY}"
+        url = f"https://newsapi.org/v2/everything?q={ticker}&sortBy=publishedAt&language=en&apiKey=your_newsapi_key_here"
         response = requests.get(url)
         if response.status_code != 200:
             return f"Error: {response.status_code} - {response.reason}"
