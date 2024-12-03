@@ -62,10 +62,10 @@ def fetch_data(ticker, period="9mo", interval="1d"):
     return None
 
 # Main Streamlit app
-st.title("Stock Data and Indicators")
+st.title("Stock Data and Indicators (Version 2.0)")
 
-# Add version confirmation
-st.write("**Script Version: 1.0 - Confirmed Running Latest Code**")
+# Add visible version confirmation
+st.write(f"**Script Version: 2.0 - Last Updated: {pd.Timestamp.now()}**")
 
 # Ticker input
 ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
