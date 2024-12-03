@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import requests
 
 # API Key for NewsAPI
-NEWS_API_KEY = "7fba993708524695920b396056980ffb"
+NEWS_API_KEY = "your_newsapi_key_here"
 
 # Fetch Sentiment
 def fetch_sentiment(ticker):
@@ -91,12 +91,27 @@ st.title("Market Insights Dashboard")
 # Tabs for Navigation
 tabs = st.tabs(["Insights", "Portfolio", "Individual Analysis"])
 
+# Ticker Options
+ticker_options = {
+    "Stocks": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
+    "Cryptocurrencies": ["BTC-USD", "ETH-USD", "BNB-USD"],
+    "Commodities": ["GC=F", "SI=F", "CL=F"],
+    "Indices": ["^GSPC", "^DJI", "^IXIC"]
+}
+
 with tabs[0]:
     st.subheader("Global Insights")
-    tickers = ["AAPL", "MSFT", "BTC-USD", "ETH-USD"]
+    # Dropdown for selecting category
+    category = st.selectbox("Select category:", list(ticker_options.keys()))
+    selected_tickers = st.multiselect(
+        "Select tickers to analyze:",
+        options=ticker_options[category],
+        default=ticker_options[category][:2]  # Default to the first two tickers
+    )
+    
     global_insights = []
     
-    for idx, ticker in enumerate(tickers):
+    for idx, ticker in enumerate(selected_tickers):
         with st.container():
             st.write(f"Fetching data for {ticker}...")
             data = fetch_data(ticker)
@@ -150,8 +165,6 @@ with tabs[0]:
     else:
         st.write("No actionable insights available.")
 
-
-
 with tabs[1]:
     st.subheader("Portfolio Tracker")
     st.write("Feature under construction...")
@@ -169,4 +182,3 @@ with tabs[2]:
             st.plotly_chart(plot_interactive_chart(data, ticker))
         else:
             st.error(f"Failed to fetch data for {ticker}.")
-
