@@ -91,24 +91,12 @@ st.title("Market Insights Dashboard")
 # Tabs for Navigation
 tabs = st.tabs(["Insights", "Portfolio", "Individual Analysis"])
 
-# Ticker Options
-ticker_options = {
-    "Stocks": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
-    "Cryptocurrencies": ["BTC-USD", "ETH-USD", "BNB-USD"],
-    "Commodities": ["GC=F", "SI=F", "CL=F"],
-    "Indices": ["^GSPC", "^DJI", "^IXIC"]
-}
-
 with tabs[0]:
     st.subheader("Global Insights")
-    # Dropdown for selecting category
-    category = st.selectbox("Select category:", list(ticker_options.keys()))
-    selected_tickers = st.multiselect(
-        "Select tickers to analyze:",
-        options=ticker_options[category],
-        default=ticker_options[category][:2]  # Default to the first two tickers
-    )
-    
+    # Allow users to input any ticker
+    user_input = st.text_input("Enter tickers (comma-separated, e.g., AAPL, MSFT, BTC-USD):", "AAPL, MSFT")
+    selected_tickers = [ticker.strip().upper() for ticker in user_input.split(",") if ticker.strip()]
+
     global_insights = []
     
     for idx, ticker in enumerate(selected_tickers):
@@ -151,13 +139,19 @@ with tabs[0]:
                             action = "Sell/Short"
 
                 # Combine insights and sentiment if actionable
-                if insights or sentiment_action:
-                    global_insights.append({
-                        "Ticker": ticker,
-                        "Insights": "; ".join(insights) if insights else sentiment_action,
-                        "Sentiment": sentiment,
-                        "Action": action or "Hold"
-                    })
+                global_insights.append({
+                    "Ticker": ticker,
+                    "Insights": "; ".join(insights) if insights else "No actionable insights",
+                    "Sentiment": sentiment,
+                    "Action": action or "Hold"
+                })
+            else:
+                global_insights.append({
+                    "Ticker": ticker,
+                    "Insights": "No actionable insights",
+                    "Sentiment": "Data unavailable",
+                    "Action": "N/A"
+                })
 
     # Display filtered insights
     if global_insights:
@@ -171,7 +165,6 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Individual Analysis")
-    # Use selected tickers from Global Insights
     if selected_tickers:
         selected_ticker = st.selectbox("Select a ticker to analyze:", selected_tickers)
         data = fetch_data(selected_ticker)
