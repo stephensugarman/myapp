@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import requests
 
 # API Key for NewsAPI
-NEWS_API_KEY = "7fba993708524695920b396056980ffb"
+NEWS_API_KEY = "your_newsapi_key_here"
 
 # Fetch Sentiment
 def fetch_sentiment(ticker):
@@ -33,7 +33,6 @@ def fetch_sentiment(ticker):
         return f"{sentiment_score:.1f}% positive"
     except Exception as e:
         return f"Error fetching sentiment: {e}"
-
 
 # RSI Calculation
 def calculate_rsi(series, period=14):
@@ -127,7 +126,6 @@ with tabs[0]:
     else:
         st.write("No actionable insights available.")
 
-
 with tabs[1]:
     st.subheader("Portfolio Tracker")
     st.write("Feature under construction...")
@@ -145,3 +143,4 @@ with tabs[2]:
             st.plotly_chart(plot_interactive_chart(data, ticker))
         else:
             st.error(f"Failed to fetch data for {ticker}.")
+
