@@ -2,6 +2,21 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+import requests
+
+# API Keys
+NEWS_API_KEY = "your_newsapi_key_here"
+
+# Fetch Sentiment
+def fetch_sentiment(ticker):
+    try:
+        url = f"https://newsapi.org/v2/everything?q={ticker}&apiKey={NEWS_API_KEY}"
+        response = requests.get(url)
+        articles = response.json().get("articles", [])
+        sentiment_score = sum(1 if "positive" in article["description"].lower() else -1 for article in articles if "description" in article)
+        return sentiment_score
+    except Exception as e:
+        return f"Error fetching sentiment: {e}"
 
 # RSI Calculation
 def calculate_rsi(series, period=14):
@@ -12,13 +27,11 @@ def calculate_rsi(series, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# Additional Indicators
+# Indicators
 def calculate_indicators(data):
     data['MA20'] = data['Close'].rolling(window=20).mean()
-    rolling_mean = data['Close'].rolling(window=20).mean()
-    rolling_std = data['Close'].rolling(window=20).std()
-    data['BB_upper'] = rolling_mean + (2 * rolling_std)
-    data['BB_lower'] = rolling_mean - (2 * rolling_std)
+    data['BB_upper'] = data['Close'].rolling(window=20).mean() + (2 * data['Close'].rolling(window=20).std())
+    data['BB_lower'] = data['Close'].rolling(window=20).mean() - (2 * data['Close'].rolling(window=20).std())
 
 # Fetch Data
 def fetch_data(ticker, period="1mo", interval="1d"):
@@ -38,23 +51,13 @@ def fetch_data(ticker, period="1mo", interval="1d"):
         st.error(f"Error fetching data for {ticker}: {e}")
         return None
 
-# Plot Interactive Chart
+# Plot Chart
 def plot_interactive_chart(data, ticker):
     fig = go.Figure()
-
-    # Price and Bollinger Bands
     fig.add_trace(go.Scatter(x=data.index, y=data['Close'], name='Close Price', line=dict(color='blue')))
     fig.add_trace(go.Scatter(x=data.index, y=data['BB_upper'], name='Upper Bollinger Band', line=dict(dash='dash', color='red')))
     fig.add_trace(go.Scatter(x=data.index, y=data['BB_lower'], name='Lower Bollinger Band', line=dict(dash='dash', color='green')))
-
-    # RSI on secondary y-axis
     fig.add_trace(go.Scatter(x=data.index, y=data['RSI'], name='RSI', yaxis='y2', line=dict(color='orange', dash='dot')))
-
-    # Add horizontal lines for RSI
-    fig.add_shape(type="line", x0=data.index.min(), x1=data.index.max(), y0=70, y1=70, line=dict(color="red", dash="dash"), yref="y2")
-    fig.add_shape(type="line", x0=data.index.min(), x1=data.index.max(), y0=30, y1=30, line=dict(color="green", dash="dash"), yref="y2")
-
-    # Layout updates
     fig.update_layout(
         title=f"{ticker} Price and RSI",
         xaxis=dict(title="Date"),
@@ -64,50 +67,37 @@ def plot_interactive_chart(data, ticker):
     )
     return fig
 
-# Main App
+# App Layout
 st.title("Market Insights Dashboard")
-strategy = st.radio("Select trading strategy:", ("Long Only", "Short Only", "Both"))
 
-categories = {
-    "Stocks": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
-    "Cryptocurrencies": ["BTC-USD", "ETH-USD", "BNB-USD"],
-}
-
-category = st.selectbox("Select asset category:", list(categories.keys()))
-tickers = categories[category]
-
-# Global Insights
-st.subheader("Global Insights")
-global_insights = []
-for ticker in tickers:
-    st.write(f"Fetching data for {ticker}...")
-    data = fetch_data(ticker)
-    if data is not None:
-        data['RSI'] = calculate_rsi(data['Close'])
-        calculate_indicators(data)
-        insights = []
-        if data['RSI'].iloc[-1] < 30:
-            insights.append("Oversold (RSI < 30)")
-        if data['RSI'].iloc[-1] > 70:
-            insights.append("Overbought (RSI > 70)")
-        if data['Close'].iloc[-1] < data['BB_lower'].iloc[-1]:
-            insights.append("Price below lower Bollinger Band")
-        if data['Close'].iloc[-1] > data['BB_upper'].iloc[-1]:
-            insights.append("Price above upper Bollinger Band")
-        global_insights.append({"Ticker": ticker, "Insights": ", ".join(insights)})
-if global_insights:
-    st.dataframe(pd.DataFrame(global_insights))
-else:
-    st.write("No actionable insights available.")
-
-# Detailed Analysis for Selected Ticker
-st.subheader("Detailed Analysis")
-ticker = st.selectbox("Select a ticker for detailed analysis:", tickers)
-if ticker:
-    data = fetch_data(ticker)
-    if data is not None:
-        data['RSI'] = calculate_rsi(data['Close'])
-        calculate_indicators(data)
-        st.plotly_chart(plot_interactive_chart(data, ticker))
-    else:
-        st.error(f"Could not fetch data for {ticker}.")
+# Tabs for Navigation
+tabs = st.tabs(["Insights", "Portfolio", "Individual Analysis"])
+with tabs[0]:
+    st.subheader("Global Insights")
+    tickers = ["AAPL", "MSFT", "BTC-USD", "ETH-USD"]
+    for ticker in tickers:
+        st.write(f"Fetching data for {ticker}...")
+        data = fetch_data(ticker)
+        if data is not None:
+            data['RSI'] = calculate_rsi(data['Close'])
+            calculate_indicators(data)
+            sentiment = fetch_sentiment(ticker)
+            st.write(f"Ticker: {ticker}")
+            st.write(f"Sentiment: {sentiment}")
+            st.plotly_chart(plot_interactive_chart(data, ticker))
+        else:
+            st.error(f"Failed to fetch data for {ticker}.")
+with tabs[1]:
+    st.subheader("Portfolio Tracker")
+    st.write("Feature under construction...")
+with tabs[2]:
+    st.subheader("Individual Analysis")
+    ticker = st.text_input("Enter a ticker:", "AAPL").upper()
+    if ticker:
+        data = fetch_data(ticker)
+        if data is not None:
+            data['RSI'] = calculate_rsi(data['Close'])
+            calculate_indicators(data)
+            st.plotly_chart(plot_interactive_chart(data, ticker))
+        else:
+            st.error(f"Failed to fetch data for {ticker}.")
