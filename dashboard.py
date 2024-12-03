@@ -7,6 +7,12 @@ import requests
 # API Key for NewsAPI
 NEWS_API_KEY = "7fba993708524695920b396056980ffb"
 
+# Preloaded ticker list (sample; expand as needed)
+ticker_list = [
+    "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BTC-USD", "ETH-USD",
+    "BNB-USD", "GC=F", "SI=F", "CL=F", "^GSPC", "^DJI", "^IXIC"
+]
+
 # Fetch Sentiment
 def fetch_sentiment(ticker):
     try:
@@ -93,10 +99,14 @@ tabs = st.tabs(["Insights", "Portfolio", "Individual Analysis"])
 
 with tabs[0]:
     st.subheader("Global Insights")
-    # Allow users to input any ticker
-    user_input = st.text_input("Enter tickers (comma-separated, e.g., AAPL, MSFT, BTC-USD):", "AAPL, MSFT")
-    selected_tickers = [ticker.strip().upper() for ticker in user_input.split(",") if ticker.strip()]
-
+    # Searchable dropdown for tickers
+    selected_tickers = st.multiselect(
+        "Select tickers to analyze:",
+        options=ticker_list,
+        default=["AAPL", "MSFT"],  # Default selections
+        help="Start typing a ticker to search from the list."
+    )
+    
     global_insights = []
     
     for idx, ticker in enumerate(selected_tickers):
