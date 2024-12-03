@@ -22,13 +22,21 @@ def fetch_data(ticker, period="6mo", interval="1d"):
         st.write("Raw fetched data:")
         st.write(data)
 
-        # Validate data
-        if data.empty:
-            st.error("No data fetched. The dataset is empty.")
-            st.stop()
+        # Debugging structure
+        st.write("DataFrame type:", type(data))
+        st.write("DataFrame index:", data.index)
+        st.write("DataFrame columns before flattening:", data.columns)
+
+        # Flatten multi-index columns if necessary
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = ['_'.join(col).strip() for col in data.columns.values]
+            st.write("Flattened columns:", data.columns)
+
+        # Validate 'Close' column
         if 'Close' not in data.columns:
-            st.error("The 'Close' column is missing from the data.")
+            st.error("The 'Close' column is missing from the data after flattening.")
             st.stop()
+
         if data['Close'].isnull().all():
             st.error("The 'Close' column contains only null values.")
             st.stop()
@@ -38,20 +46,8 @@ def fetch_data(ticker, period="6mo", interval="1d"):
         st.error(f"Error fetching data: {e}")
         return None
 
-# Define additional indicators
-def calculate_indicators(data):
-    """Add Bollinger Bands and MACD indicators."""
-    data['MA20'] = data['Close'].rolling(window=20).mean()
-    data['MA50'] = data['Close'].rolling(window=50).mean()
-    rolling_mean = data['Close'].rolling(window=20).mean()
-    rolling_std = data['Close'].rolling(window=20).std()
-    data['BB_upper'] = rolling_mean + (2 * rolling_std)
-    data['BB_lower'] = rolling_mean - (2 * rolling_std)
-    data['MACD'] = data['Close'].ewm(span=12).mean() - data['Close'].ewm(span=26).mean()
-    data['Signal'] = data['MACD'].ewm(span=9).mean()
-
 # Main app
-st.title("Stock Data and Indicators")
+st.title("Stock Data and Indicators with Multi-Index Fix")
 
 # Ticker input
 ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
@@ -67,8 +63,7 @@ if ticker:
         # Calculate RSI and indicators
         try:
             data['RSI'] = calculate_rsi(data['Close'])
-            calculate_indicators(data)
-            st.write(f"Data with indicators for {ticker}:")
+            st.write(f"Data with RSI for {ticker}:")
             st.write(data)
 
             # Plot the Close price
