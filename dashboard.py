@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import requests
 
 # API Key for NewsAPI
-NEWS_API_KEY = "7fba993708524695920b396056980ffb"
+NEWS_API_KEY = "your_newsapi_key_here"
 
 # Fetch Sentiment
 def fetch_sentiment(ticker):
@@ -171,14 +171,17 @@ with tabs[1]:
 
 with tabs[2]:
     st.subheader("Individual Analysis")
-    ticker = st.text_input("Enter a ticker:", "AAPL").upper()
-    if ticker:
-        data = fetch_data(ticker)
+    # Use selected tickers from Global Insights
+    if selected_tickers:
+        selected_ticker = st.selectbox("Select a ticker to analyze:", selected_tickers)
+        data = fetch_data(selected_ticker)
         if data is not None:
             data['RSI'] = calculate_rsi(data['Close'])
             calculate_indicators(data)
-            sentiment = fetch_sentiment(ticker)
-            st.write(f"Sentiment for {ticker}: {sentiment}")
-            st.plotly_chart(plot_interactive_chart(data, ticker))
+            sentiment = fetch_sentiment(selected_ticker)
+            st.write(f"Sentiment for {selected_ticker}: {sentiment}")
+            st.plotly_chart(plot_interactive_chart(data, selected_ticker))
         else:
-            st.error(f"Failed to fetch data for {ticker}.")
+            st.error(f"Failed to fetch data for {selected_ticker}.")
+    else:
+        st.write("No tickers selected in Global Insights. Please select tickers to analyze.")
