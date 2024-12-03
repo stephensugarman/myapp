@@ -79,8 +79,42 @@ def plot_interactive_chart(data, ticker):
 
     # RSI on secondary y-axis
     fig.add_trace(go.Scatter(x=data.index, y=data['RSI'], name='RSI', yaxis='y2', line=dict(color='orange', dash='dot')))
-    fig.add_hline(y=70, line=dict(color='red', dash='dash'), annotation_text="Overbought (70)", yaxis="y2")
-    fig.add_hline(y=30, line=dict(color='green', dash='dash'), annotation_text="Oversold (30)", yaxis="y2")
+
+    # Add horizontal lines for RSI overbought/oversold levels
+    fig.add_shape(
+        type="line",
+        x0=data.index.min(),
+        x1=data.index.max(),
+        y0=70,
+        y1=70,
+        line=dict(color="red", dash="dash"),
+        yref="y2",
+    )
+    fig.add_annotation(
+        x=data.index.max(),
+        y=70,
+        text="Overbought (70)",
+        showarrow=False,
+        yref="y2",
+        align="right"
+    )
+    fig.add_shape(
+        type="line",
+        x0=data.index.min(),
+        x1=data.index.max(),
+        y0=30,
+        y1=30,
+        line=dict(color="green", dash="dash"),
+        yref="y2",
+    )
+    fig.add_annotation(
+        x=data.index.max(),
+        y=30,
+        text="Oversold (30)",
+        showarrow=False,
+        yref="y2",
+        align="right"
+    )
 
     # Layout updates
     fig.update_layout(
@@ -92,50 +126,3 @@ def plot_interactive_chart(data, ticker):
         template="plotly_dark"
     )
     return fig
-
-# Main App
-st.title("Enhanced Market Insights Dashboard")
-strategy = st.radio("Select trading strategy:", ("Long Only", "Short Only", "Both"))
-
-categories = {
-    "Stocks": ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"],
-    "Cryptocurrencies": ["BTC-USD", "ETH-USD", "BNB-USD"],
-    "Commodities": ["GC=F", "SI=F", "CL=F"],
-    "Bonds": ["^TNX", "^FVX", "^TYX"]
-}
-
-category = st.selectbox("Select asset category:", list(categories.keys()))
-tickers = categories[category]
-
-# Generate and Display Global Insights
-st.subheader("Global Insights")
-global_insights = []
-for ticker in tickers:
-    data = fetch_data(ticker)
-    if data is not None:
-        data['RSI'] = calculate_rsi(data['Close'])
-        calculate_indicators(data)
-        insights = generate_insights(ticker, data, strategy)
-        if insights:
-            global_insights.append({"Ticker": ticker, "Insights": "; ".join(insights)})
-if global_insights:
-    st.dataframe(pd.DataFrame(global_insights))
-else:
-    st.write("No actionable insights available.")
-
-# Detailed Analysis for Selected Ticker
-st.subheader("Detailed Analysis")
-ticker = st.selectbox("Select a ticker for detailed analysis:", tickers)
-if ticker:
-    data = fetch_data(ticker)
-    if data is not None:
-        data['RSI'] = calculate_rsi(data['Close'])
-        calculate_indicators(data)
-        st.plotly_chart(plot_interactive_chart(data, ticker))
-        insights = generate_insights(ticker, data, strategy)
-        st.write("### Insights")
-        for insight in insights:
-            st.write(f"- {insight}")
-    else:
-        st.error(f"Could not fetch data for {ticker}.")
-
