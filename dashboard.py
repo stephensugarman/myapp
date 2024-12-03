@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import requests
 
 # API Key for NewsAPI
-NEWS_API_KEY = "your_newsapi_key_here"
+NEWS_API_KEY = "7fba993708524695920b396056980ffb"
 
 # Fetch Sentiment
 def fetch_sentiment(ticker):
