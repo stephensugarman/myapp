@@ -35,18 +35,18 @@ def fetch_data(ticker, period="6mo", interval="1d"):
 
         close_column = [col for col in data.columns if 'close' in col.lower()]
         if not close_column:
-            st.error("No 'Close' column found in the data.")
-            st.stop()
+            st.error(f"No 'Close' column found in {ticker} data.")
+            return None
         else:
             data.rename(columns={close_column[0]: 'Close'}, inplace=True)
 
         if data['Close'].isnull().all():
-            st.error("The 'Close' column contains only null values.")
-            st.stop()
+            st.error(f"The 'Close' column for {ticker} contains only null values.")
+            return None
 
         return data
     except Exception as e:
-        st.error(f"Error fetching data: {e}")
+        st.error(f"Error fetching data for {ticker}: {e}")
         return None
 
 # Generate actionable insights
@@ -54,20 +54,36 @@ def generate_insights(data):
     """Generate actionable insights based on RSI and Bollinger Bands."""
     insights = []
     if data['RSI'].iloc[-1] < 30:
-        insights.append("The stock is oversold. Consider buying.")
+        insights.append("The asset is oversold. Consider buying.")
     if data['RSI'].iloc[-1] > 70:
-        insights.append("The stock is overbought. Consider selling.")
+        insights.append("The asset is overbought. Consider selling.")
     if data['Close'].iloc[-1] < data['BB_lower'].iloc[-1]:
-        insights.append("The stock is trading below the lower Bollinger Band. It might be undervalued.")
+        insights.append("The asset is below the lower Bollinger Band. It might be undervalued.")
     if data['Close'].iloc[-1] > data['BB_upper'].iloc[-1]:
-        insights.append("The stock is trading above the upper Bollinger Band. It might be overvalued.")
+        insights.append("The asset is above the upper Bollinger Band. It might be overvalued.")
     return insights
 
 # Main app
-st.title("Stock Data and Indicators with Insights")
+st.title("Market Insights Dashboard")
 
-# Ticker input
-ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
+# Asset categories
+categories = {
+    "Stocks": [
+        "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BRK-B", "V", "JNJ",
+        "WMT", "PG", "MA", "DIS", "HD", "BAC", "XOM", "NFLX", "KO", "PFE", "PEP", "INTC", "CVX", "ABT", "CSCO"
+    ],
+    "Cryptocurrencies": [
+        "BTC-USD", "ETH-USD", "BNB-USD", "USDT-USD", "ADA-USD", "XRP-USD", "SOL-USD", "DOT-USD", "DOGE-USD", "SHIB-USD",
+        "MATIC-USD", "LTC-USD", "AVAX-USD", "UNI-USD", "LINK-USD", "ATOM-USD", "TRX-USD", "FTT-USD", "ALGO-USD", "BCH-USD",
+        "XLM-USD", "VET-USD", "FIL-USD", "THETA-USD", "EOS-USD"
+    ],
+    "Commodities": ["GC=F", "SI=F", "CL=F", "NG=F", "HG=F"],
+    "Bonds": ["^TNX", "^IRX", "^FVX", "^TYX"]
+}
+
+category = st.selectbox("Select asset category:", list(categories.keys()))
+tickers = categories[category]
+ticker = st.selectbox("Select a ticker:", tickers)
 
 if ticker:
     # Fetch data
@@ -78,47 +94,31 @@ if ticker:
         data['RSI'] = calculate_rsi(data['Close'])
         calculate_indicators(data)
 
-        # Display data preview
-        st.write("Processed data preview:")
-        st.write(data[['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']].dropna().tail())
-
         # Generate insights
         insights = generate_insights(data)
         st.subheader("Actionable Insights")
         for insight in insights:
             st.write(f"- {insight}")
 
-        # Plot the Close price and Bollinger Bands
-        st.subheader("Price Chart with Bollinger Bands")
-        fig, ax = plt.subplots()
-        ax.plot(data.index, data['Close'], label='Close Price', color='blue')
-        ax.plot(data.index, data['BB_upper'], label='Upper Bollinger Band', linestyle='--', color='red')
-        ax.plot(data.index, data['BB_lower'], label='Lower Bollinger Band', linestyle='--', color='green')
-        ax.set_title(f"{ticker} Close Price with Bollinger Bands")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Price")
-        ax.legend()
-        st.pyplot(fig)
+        # Combined Price and RSI Chart
+        st.subheader("Price and RSI Chart")
+        fig, ax1 = plt.subplots()
 
-        # Plot the RSI
-        st.subheader("RSI Chart")
-        fig, ax = plt.subplots()
-        ax.plot(data.index, data['RSI'], label='RSI', color='orange')
-        ax.axhline(70, linestyle='--', color='red', label='Overbought')
-        ax.axhline(30, linestyle='--', color='green', label='Oversold')
-        ax.set_title(f"{ticker} RSI")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("RSI")
-        ax.legend()
-        st.pyplot(fig)
+        # Price chart
+        ax1.plot(data.index, data['Close'], label='Close Price', color='blue')
+        ax1.plot(data.index, data['BB_upper'], label='Upper Bollinger Band', linestyle='--', color='red')
+        ax1.plot(data.index, data['BB_lower'], label='Lower Bollinger Band', linestyle='--', color='green')
+        ax1.set_xlabel("Date")
+        ax1.set_ylabel("Price")
+        ax1.legend(loc='upper left')
 
-        # Plot MACD and Signal
-        st.subheader("MACD Chart")
-        fig, ax = plt.subplots()
-        ax.plot(data.index, data['MACD'], label='MACD', color='purple')
-        ax.plot(data.index, data['Signal'], label='Signal Line', color='pink')
-        ax.set_title(f"{ticker} MACD")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("MACD")
-        ax.legend()
+        # RSI chart (overlayed on the right axis)
+        ax2 = ax1.twinx()
+        ax2.plot(data.index, data['RSI'], label='RSI', color='orange', linestyle='-.')
+        ax2.axhline(70, linestyle='--', color='red', label='Overbought')
+        ax2.axhline(30, linestyle='--', color='green', label='Oversold')
+        ax2.set_ylabel("RSI")
+        ax2.legend(loc='upper right')
+
+        fig.suptitle(f"{ticker} Price and RSI")
         st.pyplot(fig)
