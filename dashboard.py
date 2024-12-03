@@ -75,18 +75,19 @@ tabs = st.tabs(["Insights", "Portfolio", "Individual Analysis"])
 with tabs[0]:
     st.subheader("Global Insights")
     tickers = ["AAPL", "MSFT", "BTC-USD", "ETH-USD"]
-    for ticker in tickers:
-        st.write(f"Fetching data for {ticker}...")
-        data = fetch_data(ticker)
-        if data is not None:
-            data['RSI'] = calculate_rsi(data['Close'])
-            calculate_indicators(data)
-            sentiment = fetch_sentiment(ticker)
-            st.write(f"Ticker: {ticker}")
-            st.write(f"Sentiment: {sentiment}")
-            st.plotly_chart(plot_interactive_chart(data, ticker))
-        else:
-            st.error(f"Failed to fetch data for {ticker}.")
+    for idx, ticker in enumerate(tickers):
+        with st.container():
+            st.write(f"Fetching data for {ticker}...")
+            data = fetch_data(ticker)
+            if data is not None:
+                data['RSI'] = calculate_rsi(data['Close'])
+                calculate_indicators(data)
+                sentiment = fetch_sentiment(ticker)
+                st.write(f"Ticker: {ticker}")
+                st.write(f"Sentiment: {sentiment}")
+                st.plotly_chart(plot_interactive_chart(data, ticker), key=f"chart_{idx}")
+            else:
+                st.error(f"Failed to fetch data for {ticker}.")
 with tabs[1]:
     st.subheader("Portfolio Tracker")
     st.write("Feature under construction...")
@@ -101,3 +102,4 @@ with tabs[2]:
             st.plotly_chart(plot_interactive_chart(data, ticker))
         else:
             st.error(f"Failed to fetch data for {ticker}.")
+
