@@ -64,8 +64,13 @@ if ticker:
         # Calculate RSI
         try:
             data['RSI'] = calculate_rsi(data['Close'])
-            st.write(f"Data with RSI for {ticker}:")
-            st.write(data)
+            st.write("Processed data preview:")
+            st.write(data[['Close', 'RSI']].dropna().head())
+
+            # Verify plot data
+            if data[['Close', 'RSI']].dropna().empty:
+                st.error("No valid data to plot charts. Please check the data.")
+                st.stop()
 
             # Plot the Close price
             st.subheader("Price Chart")
