@@ -1,201 +1,84 @@
-import yfinance as yf
-import logging
-
-# Enable logging
-logging.basicConfig(level=logging.DEBUG)
-
-# Test fetching data
-try:
-    print("Fetching data for AAPL...")
-    data = yf.download('AAPL', period="1mo", interval="1d", group_by='ticker')
-    if data.empty:
-        print("Data is empty.")
-    else:
-        print("Data fetched successfully:")
-        print(data)
-except Exception as e:
-    print(f"Error fetching data: {e}")
-# Import Libraries
 import streamlit as st
-import pandas as pd
 import yfinance as yf
+import pandas as pd
+import matplotlib.pyplot as plt
 
-# RSI Calculation
+# Define RSI calculation
 def calculate_rsi(series, period=14):
     """Calculate the Relative Strength Index (RSI)."""
-    if len(series) < period:
-        return pd.Series([None] * len(series), index=series.index)
     delta = series.diff()
-    gain = delta.where(delta > 0, 0).rolling(window=period).mean()
-    loss = -delta.where(delta < 0, 0).rolling(window=period).mean()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# Additional Indicators
-def calculate_indicators(df):
-    """Calculate additional indicators for the DataFrame."""
-    if 'Close' in df.columns and not df.empty:
-        df['MA20'] = df['Close'].rolling(window=20).mean()
-        df['MA50'] = df['Close'].rolling(window=50).mean()
-        rolling_mean = df['Close'].rolling(window=20).mean()
-        rolling_std = df['Close'].rolling(window=20).std()
-        df['BB_upper'] = rolling_mean + (2 * rolling_std)
-        df['BB_lower'] = rolling_mean - (2 * rolling_std)
-        df['MACD'] = df['Close'].ewm(span=12).mean() - df['Close'].ewm(span=26).mean()
-        df['Signal'] = df['MACD'].ewm(span=9).mean()
+# Define additional indicators
+def calculate_indicators(data):
+    """Add additional indicators like Bollinger Bands and MACD."""
+    data['MA20'] = data['Close'].rolling(window=20).mean()
+    data['MA50'] = data['Close'].rolling(window=50).mean()
+    rolling_mean = data['Close'].rolling(window=20).mean()
+    rolling_std = data['Close'].rolling(window=20).std()
+    data['BB_upper'] = rolling_mean + (2 * rolling_std)
+    data['BB_lower'] = rolling_mean - (2 * rolling_std)
+    data['MACD'] = data['Close'].ewm(span=12).mean() - data['Close'].ewm(span=26).mean()
+    data['Signal'] = data['MACD'].ewm(span=9).mean()
 
-# Validate DataFrame for Analysis
-def validate_data(df, required_columns):
-    """Ensure the DataFrame is valid for analysis."""
-    if df is None or df.empty or len(df) < 2:
-        return False
-    for col in required_columns:
-        if col not in df.columns or df[col].iloc[-2:].isna().any():
-            return False
-    return True
+# Fetch data
+def fetch_data(ticker, period="9mo", interval="1d"):
+    """Fetch data for the given ticker."""
+    try:
+        data = yf.download(ticker, period=period, interval=interval)
+        return data
+    except Exception as e:
+        st.error(f"Error fetching data for {ticker}: {e}")
+        return None
 
-# Fetch Real Market Data
-import time
+# Main Streamlit app
+st.title("Stock Data and Indicators")
 
-import time
+# Ticker input
+ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
 
-import time
-import requests
+# Fetch and display data
+if ticker:
+    st.write(f"Fetching data for {ticker}...")
+    data = fetch_data(ticker)
 
-import time
+    if data is not None and not data.empty:
+        st.write(f"Raw data for {ticker}:")
+        st.write(data)
 
-import time
+        # Calculate RSI and other indicators
+        try:
+            data['RSI'] = calculate_rsi(data['Close'])
+            calculate_indicators(data)
+            st.write(f"Data with indicators for {ticker}:")
+            st.write(data)
 
-def fetch_real_market_data():
-    """Fetch market data for multiple tickers."""
-    tickers = {
-        'stocks': ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA'],
-        'crypto': ['BTC-USD', 'ETH-USD', 'XRP-USD', 'LTC-USD', 'USDT-USD'],
-        'commodities': ['GC=F', 'SI=F', 'CL=F', 'NG=F'],
-        'bonds': ['^TNX', '^IRX', '^FVX', '^TYX']
-    }
-    required_cols = ['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']
-    market_data = {}
+            # Plot the Close price and RSI
+            st.subheader("Price Chart")
+            fig, ax = plt.subplots()
+            ax.plot(data.index, data['Close'], label='Close Price', color='blue')
+            ax.set_title(f"{ticker} Close Price")
+            ax.set_xlabel("Date")
+            ax.set_ylabel("Price")
+            ax.legend()
+            st.pyplot(fig)
 
-    for market_type, ticker_list in tickers.items():
-        market_data[market_type] = {}
-        for ticker in ticker_list:
-            for attempt in range(3):  # Retry up to 3 times
-                try:
-                    # Fetch data
-                    st.write(f"Fetching data for {ticker}, attempt {attempt + 1}...")
-                    data = yf.download(ticker, period="9mo", interval="1d", group_by='ticker')
+            st.subheader("RSI Chart")
+            fig, ax = plt.subplots()
+            ax.plot(data.index, data['RSI'], label='RSI', color='orange')
+            ax.axhline(70, linestyle='--', color='red', label='Overbought')
+            ax.axhline(30, linestyle='--', color='green', label='Oversold')
+            ax.set_title(f"{ticker} RSI")
+            ax.set_xlabel("Date")
+            ax.set_ylabel("RSI")
+            ax.legend()
+            st.pyplot(fig)
 
-                    # Log raw data
-                    st.write(f"Raw data for {ticker}:")
-                    st.write(data)
-
-                    if data.empty or 'Close' not in data.columns:
-                        if attempt < 2:
-                            st.warning(f"{ticker}: Missing 'Close' data. Retrying... ({attempt + 1}/3)")
-                            time.sleep(2)  # Delay before retrying
-                            continue
-                        else:
-                            raise ValueError(f"{ticker}: Missing 'Close' data after 3 attempts.")
-
-                    # Validate data content
-                    if data['Close'].isnull().all():
-                        raise ValueError(f"{ticker}: All 'Close' values are NaN or invalid.")
-
-                    # Calculate RSI and additional indicators
-                    try:
-                        data['RSI'] = calculate_rsi(data['Close'])
-                        calculate_indicators(data)
-                    except Exception as e:
-                        st.warning(f"{ticker}: Indicator calculation failed: {e}")
-                        for col in required_cols:
-                            if col not in data.columns:
-                                data[col] = float('nan')
-
-                    # Drop rows with NaNs due to warm-up
-                    warmup_period = max(14, 20)
-                    data = data.iloc[warmup_period:].dropna(subset=required_cols)
-
-                    # Check if valid rows remain
-                    if data.empty:
-                        st.warning(f"{ticker}: No valid rows after processing. Skipping...")
-                        continue
-
-                    # Store processed data
-                    market_data[market_type][ticker] = data
-                    break
-
-                except Exception as e:
-                    if attempt == 2:
-                        st.warning(f"Failed to fetch data for {ticker}: {e}")
-    return market_data
-
-
-# Generate Recommendations
-def generate_actionable_recommendations(market_data, rsi_threshold=30, price_change_threshold=0.01):
-    """Generate actionable recommendations based on indicators."""
-    actionable_recs = {}
-    for market_type, tickers in market_data.items():
-        actionable_recs[market_type] = []
-        for ticker, df in tickers.items():
-            try:
-                # Validate DataFrame
-                if not validate_data(df, ['Close', 'RSI']):
-                    st.warning(f"Skipping {ticker}: Invalid or insufficient data.")
-                    continue
-
-                # Retrieve scalar values
-                prev_close = df['Close'].iloc[-2]
-                last_close = df['Close'].iloc[-1]
-                last_rsi = df['RSI'].iloc[-1]
-                macd = df['MACD'].iloc[-1] if 'MACD' in df.columns else None
-                signal = df['Signal'].iloc[-1] if 'Signal' in df.columns else None
-                bb_lower = df['BB_lower'].iloc[-1] if 'BB_lower' in df.columns else None
-
-                # Safely calculate price change
-                price_change = (last_close - prev_close) / prev_close if pd.notna(prev_close) and pd.notna(last_close) else 0
-
-                # Scoring Logic
-                score = 0
-                if pd.notna(last_rsi) and last_rsi < rsi_threshold:
-                    score += 2
-                if pd.notna(price_change) and price_change > price_change_threshold:
-                    score += 1
-                if pd.notna(macd) and pd.notna(signal) and macd > signal:
-                    score += 1
-                if pd.notna(bb_lower) and pd.notna(last_close) and last_close < bb_lower:
-                    score += 1
-
-                # Add Recommendation
-                if score >= 4:
-                    actionable_recs[market_type].append(f"{ticker}: 📈 Strong Buy - RSI: {last_rsi:.2f}")
-                elif score >= 2:
-                    actionable_recs[market_type].append(f"{ticker}: 🤔 Potential Buy - RSI: {last_rsi:.2f}")
-                elif pd.notna(last_rsi) and last_rsi > 70:
-                    actionable_recs[market_type].append(f"{ticker}: ⚠️ Overbought - RSI: {last_rsi:.2f}")
-            except Exception as e:
-                st.error(f"Error processing {ticker}: {e}")
-    return actionable_recs
-
-# Display Recommendations
-def display_actionable_recommendations(actionable_recs):
-    """Display actionable recommendations."""
-    st.header("Actionable Recommendations")
-    for market_type, recommendations in actionable_recs.items():
-        st.subheader(market_type.capitalize())
-        if recommendations:
-            for rec in recommendations:
-                st.write(rec)
-        else:
-            st.write("No recommendations.")
-
-# Main App Logic
-st.title("Investment Insights Dashboard")
-rsi_threshold = st.sidebar.slider("RSI Threshold for Buy", min_value=10, max_value=50, value=30)
-price_change_threshold = st.sidebar.slider("Price Change Threshold (%)", min_value=0.01, max_value=0.1, value=0.01, step=0.01)
-
-market_data = fetch_real_market_data()
-actionable_recs = generate_actionable_recommendations(market_data, rsi_threshold, price_change_threshold)
-
-display_actionable_recommendations(actionable_recs)
+        except Exception as e:
+            st.error(f"Error calculating indicators for {ticker}: {e}")
+    else:
+        st.error(f"No data found for {ticker}.")
