@@ -48,6 +48,8 @@ import requests
 
 import time
 
+import time
+
 def fetch_real_market_data():
     """Fetch market data for multiple tickers."""
     tickers = {
@@ -111,7 +113,6 @@ def fetch_real_market_data():
                     if attempt == 2:
                         st.warning(f"Failed to fetch data for {ticker}: {e}")
     return market_data
-
 
 
 # Generate Recommendations
