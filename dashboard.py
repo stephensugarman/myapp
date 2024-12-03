@@ -108,29 +108,40 @@ with tabs[0]:
 
                 # Collect actionable insights
                 insights = []
+                action = None
+
                 if data['RSI'].iloc[-1] < 30:
                     insights.append("Oversold (RSI < 30)")
+                    action = "Buy"
                 if data['RSI'].iloc[-1] > 70:
                     insights.append("Overbought (RSI > 70)")
+                    action = "Sell/Short"
                 if data['Close'].iloc[-1] < data['BB_lower'].iloc[-1]:
                     insights.append("Price below lower Bollinger Band")
+                    action = "Buy"
                 if data['Close'].iloc[-1] > data['BB_upper'].iloc[-1]:
                     insights.append("Price above upper Bollinger Band")
+                    action = "Sell/Short"
 
                 # Determine actionable sentiment
                 sentiment_action = None
                 if sentiment not in ["Neutral", "No recent news found."]:
                     if "positive" in sentiment:
                         sentiment_action = "Bullish Sentiment"
+                        if not action:
+                            action = "Buy"
                     elif "negative" in sentiment:
                         sentiment_action = "Bearish Sentiment"
+                        if not action:
+                            action = "Sell/Short"
 
                 # Combine insights and sentiment if actionable
                 if insights or sentiment_action:
                     global_insights.append({
                         "Ticker": ticker,
                         "Insights": "; ".join(insights) if insights else sentiment_action,
-                        "Sentiment": sentiment
+                        "Sentiment": sentiment,
+                        "Action": action or "Hold"
                     })
 
     # Display filtered insights
@@ -138,6 +149,7 @@ with tabs[0]:
         st.table(pd.DataFrame(global_insights))
     else:
         st.write("No actionable insights available.")
+
 
 
 with tabs[1]:
