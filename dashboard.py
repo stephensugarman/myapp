@@ -2,6 +2,11 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
+import logging
+import time
+
+# Enable logging for diagnostics
+logging.basicConfig(level=logging.DEBUG)
 
 # Define RSI calculation
 def calculate_rsi(series, period=14):
@@ -25,15 +30,36 @@ def calculate_indicators(data):
     data['MACD'] = data['Close'].ewm(span=12).mean() - data['Close'].ewm(span=26).mean()
     data['Signal'] = data['MACD'].ewm(span=9).mean()
 
-# Fetch data
+# Fetch data with retries and diagnostics
 def fetch_data(ticker, period="9mo", interval="1d"):
     """Fetch data for the given ticker."""
-    try:
-        data = yf.download(ticker, period=period, interval=interval)
-        return data
-    except Exception as e:
-        st.error(f"Error fetching data for {ticker}: {e}")
-        return None
+    for attempt in range(3):  # Retry up to 3 times
+        try:
+            st.write(f"Fetching data for {ticker}, attempt {attempt + 1}...")
+            data = yf.download(ticker, period=period, interval=interval, group_by='ticker')
+
+            # Debugging raw data
+            st.write(f"Raw data for {ticker}:")
+            st.write(data)
+
+            if data.empty or 'Close' not in data.columns:
+                if attempt < 2:
+                    st.warning(f"{ticker}: Missing 'Close' data. Retrying... ({attempt + 1}/3)")
+                    time.sleep(2)  # Delay before retrying
+                    continue
+                else:
+                    raise ValueError(f"{ticker}: Missing 'Close' data after 3 attempts.")
+
+            # Check if all 'Close' values are NaN
+            if data['Close'].isnull().all():
+                raise ValueError(f"{ticker}: All 'Close' values are NaN or invalid.")
+
+            return data  # Successfully fetched data
+        except Exception as e:
+            st.warning(f"Failed to fetch data for {ticker} on attempt {attempt + 1}: {e}")
+            if attempt == 2:
+                st.error(f"{ticker}: Final failure after retries.")
+    return None
 
 # Main Streamlit app
 st.title("Stock Data and Indicators")
@@ -43,7 +69,6 @@ ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
 
 # Fetch and display data
 if ticker:
-    st.write(f"Fetching data for {ticker}...")
     data = fetch_data(ticker)
 
     if data is not None and not data.empty:
