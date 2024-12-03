@@ -4,17 +4,33 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 
-# API Keys
+# API Key for NewsAPI
 NEWS_API_KEY = "your_newsapi_key_here"
 
 # Fetch Sentiment
 def fetch_sentiment(ticker):
     try:
-        url = f"https://newsapi.org/v2/everything?q={ticker}&apiKey={NEWS_API_KEY}"
+        url = f"https://newsapi.org/v2/everything?q={ticker}&sortBy=publishedAt&language=en&apiKey={NEWS_API_KEY}"
         response = requests.get(url)
+        if response.status_code != 200:
+            return f"Error: {response.status_code} - {response.reason}"
+
         articles = response.json().get("articles", [])
-        sentiment_score = sum(1 if "positive" in article["description"].lower() else -1 for article in articles if "description" in article)
-        return sentiment_score
+        if not articles:
+            return "No recent news found."
+
+        positive, negative = 0, 0
+        for article in articles:
+            description = article.get("description", "")
+            if "positive" in description.lower():
+                positive += 1
+            elif "negative" in description.lower():
+                negative += 1
+
+        if positive + negative == 0:
+            return "Neutral"
+        sentiment_score = (positive - negative) / (positive + negative) * 100
+        return f"{sentiment_score:.1f}% positive"
     except Exception as e:
         return f"Error fetching sentiment: {e}"
 
@@ -30,8 +46,10 @@ def calculate_rsi(series, period=14):
 # Indicators
 def calculate_indicators(data):
     data['MA20'] = data['Close'].rolling(window=20).mean()
-    data['BB_upper'] = data['Close'].rolling(window=20).mean() + (2 * data['Close'].rolling(window=20).std())
-    data['BB_lower'] = data['Close'].rolling(window=20).mean() - (2 * data['Close'].rolling(window=20).std())
+    rolling_mean = data['Close'].rolling(window=20).mean()
+    rolling_std = data['Close'].rolling(window=20).std()
+    data['BB_upper'] = rolling_mean + (2 * rolling_std)
+    data['BB_lower'] = rolling_mean - (2 * rolling_std)
 
 # Fetch Data
 def fetch_data(ticker, period="1mo", interval="1d"):
@@ -72,6 +90,7 @@ st.title("Market Insights Dashboard")
 
 # Tabs for Navigation
 tabs = st.tabs(["Insights", "Portfolio", "Individual Analysis"])
+
 with tabs[0]:
     st.subheader("Global Insights")
     tickers = ["AAPL", "MSFT", "BTC-USD", "ETH-USD"]
@@ -88,9 +107,11 @@ with tabs[0]:
                 st.plotly_chart(plot_interactive_chart(data, ticker), key=f"chart_{idx}")
             else:
                 st.error(f"Failed to fetch data for {ticker}.")
+
 with tabs[1]:
     st.subheader("Portfolio Tracker")
     st.write("Feature under construction...")
+
 with tabs[2]:
     st.subheader("Individual Analysis")
     ticker = st.text_input("Enter a ticker:", "AAPL").upper()
@@ -99,7 +120,8 @@ with tabs[2]:
         if data is not None:
             data['RSI'] = calculate_rsi(data['Close'])
             calculate_indicators(data)
+            sentiment = fetch_sentiment(ticker)
+            st.write(f"Sentiment for {ticker}: {sentiment}")
             st.plotly_chart(plot_interactive_chart(data, ticker))
         else:
             st.error(f"Failed to fetch data for {ticker}.")
-
