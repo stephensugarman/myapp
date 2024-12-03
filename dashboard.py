@@ -43,6 +43,9 @@ import time
 
 import time
 
+import time
+import requests
+
 def fetch_real_market_data():
     """Fetch market data for multiple tickers."""
     tickers = {
@@ -59,63 +62,64 @@ def fetch_real_market_data():
         for ticker in ticker_list:
             for attempt in range(3):  # Retry up to 3 times
                 try:
-                    # Fetch data for a single ticker explicitly
+                    # Fetch data with yfinance
                     data = yf.download(ticker, period="9mo", interval="1d", group_by='ticker')
 
-                    # Debug: Print raw data
+                    # Debugging raw data
                     st.write(f"Raw data for {ticker} on attempt {attempt + 1}:")
                     st.write(data)
 
                     if data.empty or 'Close' not in data.columns:
                         if attempt < 2:
                             st.warning(f"{ticker}: Missing 'Close' data. Retrying... ({attempt + 1}/3)")
-                            time.sleep(2)  # Delay before retrying
+                            time.sleep(2)
                             continue
                         else:
-                            raise ValueError(f"{ticker}: Missing 'Close' data after 3 attempts.")
+                            st.warning(f"{ticker}: Trying fallback fetch...")
+                            # Fallback: Use Yahoo Finance API via pandas
+                            try:
+                                url = f"https://query1.finance.yahoo.com/v7/finance/download/{ticker}?period1=0&period2=9999999999&interval=1d&events=history"
+                                fallback_data = pd.read_csv(url)
+                                st.write(f"Fallback data for {ticker}:")
+                                st.write(fallback_data)
+                                if fallback_data.empty:
+                                    raise ValueError(f"{ticker}: Fallback also failed.")
+                                else:
+                                    data = fallback_data
+                            except Exception as fallback_error:
+                                raise ValueError(f"{ticker}: Fallback fetch failed: {fallback_error}")
 
                     # Validate data content
                     if data['Close'].isnull().all():
                         raise ValueError(f"{ticker}: All 'Close' values are NaN or invalid.")
 
-                    # Calculate RSI
+                    # Process indicators
                     try:
                         data['RSI'] = calculate_rsi(data['Close'])
-                    except Exception as e:
-                        st.warning(f"{ticker}: RSI calculation failed: {e}")
-                        data['RSI'] = float('nan')
-
-                    # Calculate additional indicators
-                    try:
                         calculate_indicators(data)
                     except Exception as e:
                         st.warning(f"{ticker}: Indicator calculation failed: {e}")
-                        for col in ['BB_upper', 'BB_lower', 'MACD', 'Signal']:
-                            data[col] = float('nan')
+                        for col in required_cols:
+                            if col not in data.columns:
+                                data[col] = float('nan')
 
-                    # Ensure all required columns exist
-                    for col in required_cols:
-                        if col not in data.columns:
-                            data[col] = float('nan')
-
-                    # Drop rows with NaNs due to warm-up periods
-                    warmup_period = max(14, 20)  # Max warm-up days for RSI and Bollinger Bands
+                    # Drop rows with NaNs due to warm-up
+                    warmup_period = max(14, 20)
                     data = data.iloc[warmup_period:].dropna(subset=required_cols)
 
-                    # Check if valid rows remain
                     if data.empty:
                         st.warning(f"{ticker}: No valid rows after processing. Skipping...")
                         continue
 
                     # Store processed data
                     market_data[market_type][ticker] = data
-                    break  # Break out of retry loop if successful
+                    break
 
                 except Exception as e:
-                    if attempt == 2:  # Only raise an error after all retries fail
+                    if attempt == 2:
                         st.warning(f"Failed to fetch data for {ticker}: {e}")
-
     return market_data
+
 
 
 # Generate Recommendations
