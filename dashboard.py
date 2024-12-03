@@ -64,6 +64,9 @@ def fetch_data(ticker, period="9mo", interval="1d"):
 # Main Streamlit app
 st.title("Stock Data and Indicators")
 
+# Add version confirmation
+st.write("**Script Version: 1.0 - Confirmed Running Latest Code**")
+
 # Ticker input
 ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
 
