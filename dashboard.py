@@ -22,9 +22,9 @@ def fetch_sentiment(ticker):
         positive, negative = 0, 0
         for article in articles:
             description = article.get("description", "")
-            if "positive" in description.lower():
+            if description and "positive" in description.lower():
                 positive += 1
-            elif "negative" in description.lower():
+            elif description and "negative" in description.lower():
                 negative += 1
 
         if positive + negative == 0:
@@ -33,6 +33,7 @@ def fetch_sentiment(ticker):
         return f"{sentiment_score:.1f}% positive"
     except Exception as e:
         return f"Error fetching sentiment: {e}"
+
 
 # RSI Calculation
 def calculate_rsi(series, period=14):
