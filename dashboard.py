@@ -1,3 +1,20 @@
+import yfinance as yf
+import logging
+
+# Enable logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Test fetching data
+try:
+    print("Fetching data for AAPL...")
+    data = yf.download('AAPL', period="1mo", interval="1d", group_by='ticker')
+    if data.empty:
+        print("Data is empty.")
+    else:
+        print("Data fetched successfully:")
+        print(data)
+except Exception as e:
+    print(f"Error fetching data: {e}")
 # Import Libraries
 import streamlit as st
 import pandas as pd
