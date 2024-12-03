@@ -4,18 +4,23 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 
-# Load a comprehensive list of tickers (you can replace this with your data source)
+# Fetch Valid Tickers
 @st.cache
-def load_ticker_list():
-    # Example tickers for stocks, crypto, indices
-    tickers = [
+def fetch_valid_tickers():
+    # Placeholder for comprehensive ticker retrieval logic
+    return [
         "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BTC-USD", "ETH-USD",
         "BNB-USD", "GC=F", "SI=F", "CL=F", "^GSPC", "^DJI", "^IXIC"
     ]
-    # You can replace this with a CSV load or an API call to get the full list
-    return tickers
 
-ticker_list = load_ticker_list()
+# Validate Ticker
+def validate_ticker(ticker):
+    try:
+        # Use Yahoo Finance to validate if ticker exists
+        data = yf.download(ticker, period="1d", interval="1d", progress=False)
+        return not data.empty
+    except Exception:
+        return False
 
 # Fetch Sentiment
 def fetch_sentiment(ticker):
@@ -64,7 +69,7 @@ def calculate_indicators(data):
 # Fetch Data
 def fetch_data(ticker, period="1mo", interval="1d"):
     try:
-        data = yf.download(ticker, period=period, interval=interval, group_by="ticker")
+        data = yf.download(ticker, period=period, interval=interval, progress=False)
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = ['_'.join(col).strip() for col in data.columns.values]
         close_column = [col for col in data.columns if 'close' in col.lower()]
@@ -103,27 +108,33 @@ tabs = st.tabs(["Insights", "Portfolio", "Individual Analysis"])
 
 with tabs[0]:
     st.subheader("Global Insights")
-    # Searchable dropdown for tickers
-    selected_tickers = st.multiselect(
-        "Select tickers to analyze:",
-        options=ticker_list,
-        default=["AAPL", "MSFT"],  # Default selections
-        help="Start typing a ticker to search from the list."
+    # Load preloaded tickers and allow dynamic input
+    preloaded_tickers = fetch_valid_tickers()
+    user_input_tickers = st.text_input(
+        "Search or enter tickers (comma-separated, e.g., AAPL, MSFT, FFLC):",
+        ""
     )
-    
+    selected_tickers = list(set(preloaded_tickers + [ticker.strip().upper() for ticker in user_input_tickers.split(",") if ticker.strip()]))
+
+    # Validate tickers
+    valid_tickers = [ticker for ticker in selected_tickers if validate_ticker(ticker)]
+    invalid_tickers = list(set(selected_tickers) - set(valid_tickers))
+
+    if invalid_tickers:
+        st.warning(f"Invalid tickers ignored: {', '.join(invalid_tickers)}")
+
     global_insights = []
-    
-    for idx, ticker in enumerate(selected_tickers):
+
+    for idx, ticker in enumerate(valid_tickers):
         with st.container():
             st.write(f"Fetching data for {ticker}...")
             data = fetch_data(ticker)
-            
+
             if data is not None:
                 data['RSI'] = calculate_rsi(data['Close'])
                 calculate_indicators(data)
                 sentiment = fetch_sentiment(ticker)
 
-                # Collect actionable insights
                 insights = []
                 action = None
 
@@ -140,7 +151,6 @@ with tabs[0]:
                     insights.append("Price above upper Bollinger Band")
                     action = "Sell/Short"
 
-                # Determine actionable sentiment
                 sentiment_action = None
                 if sentiment not in ["Neutral", "No recent news found."]:
                     if "positive" in sentiment:
@@ -152,43 +162,11 @@ with tabs[0]:
                         if not action:
                             action = "Sell/Short"
 
-                # Combine insights and sentiment if actionable
                 global_insights.append({
                     "Ticker": ticker,
                     "Insights": "; ".join(insights) if insights else "No actionable insights",
                     "Sentiment": sentiment,
                     "Action": action or "Hold"
                 })
-            else:
-                global_insights.append({
-                    "Ticker": ticker,
-                    "Insights": "No actionable insights",
-                    "Sentiment": "Data unavailable",
-                    "Action": "N/A"
-                })
 
-    # Display filtered insights
-    if global_insights:
-        st.table(pd.DataFrame(global_insights))
-    else:
-        st.write("No actionable insights available.")
-
-with tabs[1]:
-    st.subheader("Portfolio Tracker")
-    st.write("Feature under construction...")
-
-with tabs[2]:
-    st.subheader("Individual Analysis")
-    if selected_tickers:
-        selected_ticker = st.selectbox("Select a ticker to analyze:", selected_tickers)
-        data = fetch_data(selected_ticker)
-        if data is not None:
-            data['RSI'] = calculate_rsi(data['Close'])
-            calculate_indicators(data)
-            sentiment = fetch_sentiment(selected_ticker)
-            st.write(f"Sentiment for {selected_ticker}: {sentiment}")
-            st.plotly_chart(plot_interactive_chart(data, selected_ticker))
-        else:
-            st.error(f"Failed to fetch data for {selected_ticker}.")
-    else:
-        st.write("No tickers selected in Global Insights. Please select tickers to analyze.")
+    st.table(pd.DataFrame(global_insights))
