@@ -117,14 +117,28 @@ with tabs[0]:
                 if data['Close'].iloc[-1] > data['BB_upper'].iloc[-1]:
                     insights.append("Price above upper Bollinger Band")
 
-                if insights or sentiment not in ["Neutral", "No recent news found."]:
-                    global_insights.append({"Ticker": ticker, "Insights": "; ".join(insights), "Sentiment": sentiment})
+                # Determine actionable sentiment
+                sentiment_action = None
+                if sentiment not in ["Neutral", "No recent news found."]:
+                    if "positive" in sentiment:
+                        sentiment_action = "Bullish Sentiment"
+                    elif "negative" in sentiment:
+                        sentiment_action = "Bearish Sentiment"
+
+                # Combine insights and sentiment if actionable
+                if insights or sentiment_action:
+                    global_insights.append({
+                        "Ticker": ticker,
+                        "Insights": "; ".join(insights) if insights else sentiment_action,
+                        "Sentiment": sentiment
+                    })
 
     # Display filtered insights
     if global_insights:
         st.table(pd.DataFrame(global_insights))
     else:
         st.write("No actionable insights available.")
+
 
 with tabs[1]:
     st.subheader("Portfolio Tracker")
