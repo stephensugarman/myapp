@@ -34,7 +34,7 @@ def fetch_data(ticker, primary_period="6mo", fallback_period="1y", interval="1d"
     return data
 
 # Main Streamlit app
-st.title("Stock Data and Indicators with Period Handling")
+st.title("Stock Data and Indicators with Validation")
 
 # Ticker input
 ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
@@ -43,39 +43,45 @@ ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
 if ticker:
     data = fetch_data(ticker)
 
-    if data is not None and not data.empty:
-        st.write(f"Raw data for {ticker}:")
+    if data is not None:
+        st.write("Fetched data structure:")
         st.write(data)
+        st.write("Columns available:", data.columns)
 
-        # Calculate RSI
-        try:
-            data['RSI'] = calculate_rsi(data['Close'])
-            st.write(f"Data with RSI for {ticker}:")
-            st.write(data)
+        # Validate data
+        if 'Close' not in data.columns or data['Close'].isnull().all():
+            st.error("Data does not contain valid 'Close' prices. Skipping...")
+        else:
+            # Calculate RSI
+            try:
+                data['RSI'] = calculate_rsi(data['Close'])
+                st.write(f"Data with RSI for {ticker}:")
+                st.write(data)
 
-            # Plot the Close price and RSI
-            st.subheader("Price Chart")
-            fig, ax = plt.subplots()
-            ax.plot(data.index, data['Close'], label='Close Price', color='blue')
-            ax.set_title(f"{ticker} Close Price")
-            ax.set_xlabel("Date")
-            ax.set_ylabel("Price")
-            ax.legend()
-            st.pyplot(fig)
+                # Plot the Close price and RSI
+                st.subheader("Price Chart")
+                fig, ax = plt.subplots()
+                ax.plot(data.index, data['Close'], label='Close Price', color='blue')
+                ax.set_title(f"{ticker} Close Price")
+                ax.set_xlabel("Date")
+                ax.set_ylabel("Price")
+                ax.legend()
+                st.pyplot(fig)
 
-            st.subheader("RSI Chart")
-            fig, ax = plt.subplots()
-            ax.plot(data.index, data['RSI'], label='RSI', color='orange')
-            ax.axhline(70, linestyle='--', color='red', label='Overbought')
-            ax.axhline(30, linestyle='--', color='green', label='Oversold')
-            ax.set_title(f"{ticker} RSI")
-            ax.set_xlabel("Date")
-            ax.set_ylabel("RSI")
-            ax.legend()
-            st.pyplot(fig)
+                st.subheader("RSI Chart")
+                fig, ax = plt.subplots()
+                ax.plot(data.index, data['RSI'], label='RSI', color='orange')
+                ax.axhline(70, linestyle='--', color='red', label='Overbought')
+                ax.axhline(30, linestyle='--', color='green', label='Oversold')
+                ax.set_title(f"{ticker} RSI")
+                ax.set_xlabel("Date")
+                ax.set_ylabel("RSI")
+                ax.legend()
+                st.pyplot(fig)
 
-        except Exception as e:
-            st.error(f"Error calculating indicators for {ticker}: {e}")
+            except Exception as e:
+                st.error(f"Error calculating indicators for {ticker}: {e}")
     else:
         st.error(f"No data found for {ticker}.")
+
 
