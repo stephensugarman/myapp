@@ -13,20 +13,15 @@ def calculate_rsi(series, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# Fetch data with diagnostics
+# Fetch data with column validation
 def fetch_data(ticker, period="6mo", interval="1d"):
-    """Fetch stock data with validation."""
-    st.write(f"Fetching data for {ticker} (Primary Period: {period})...")
+    """Fetch stock data and validate columns."""
     try:
         data = yf.download(ticker, period=period, interval=interval, group_by="ticker")
-        st.write("Raw fetched data:")
-        st.write(data.head())
-        st.write("DataFrame columns:", data.columns.tolist())
 
         # Flatten multi-index columns if necessary
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = ['_'.join(col).strip() for col in data.columns.values]
-            st.write("Flattened columns:", data.columns.tolist())
 
         # Dynamically match 'Close' column
         close_column = [col for col in data.columns if 'close' in col.lower()]
@@ -34,7 +29,6 @@ def fetch_data(ticker, period="6mo", interval="1d"):
             st.error("No 'Close' column or similar found in the data.")
             st.stop()
         else:
-            st.write(f"Using column '{close_column[0]}' as the 'Close' column.")
             data.rename(columns={close_column[0]: 'Close'}, inplace=True)
 
         # Check for null values in 'Close'
@@ -48,7 +42,7 @@ def fetch_data(ticker, period="6mo", interval="1d"):
         return None
 
 # Main app
-st.title("Stock Data and Indicators with Column Matching")
+st.title("Stock Data and Indicators")
 
 # Ticker input
 ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
@@ -58,19 +52,9 @@ if ticker:
     data = fetch_data(ticker)
 
     if data is not None:
-        st.write("Valid data fetched successfully!")
-        st.write(data)
-
         # Calculate RSI
         try:
             data['RSI'] = calculate_rsi(data['Close'])
-            st.write("Processed data preview:")
-            st.write(data[['Close', 'RSI']].dropna().head())
-
-            # Verify plot data
-            if data[['Close', 'RSI']].dropna().empty:
-                st.error("No valid data to plot charts. Please check the data.")
-                st.stop()
 
             # Plot the Close price
             st.subheader("Price Chart")
@@ -98,4 +82,3 @@ if ticker:
             st.error(f"Error calculating indicators: {e}")
     else:
         st.error(f"No valid data available for {ticker}.")
-
