@@ -13,25 +13,33 @@ def calculate_rsi(series, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# Fetch data with column validation
+# Define additional indicators
+def calculate_indicators(data):
+    """Add Bollinger Bands, Moving Averages, and MACD indicators."""
+    data['MA20'] = data['Close'].rolling(window=20).mean()
+    data['MA50'] = data['Close'].rolling(window=50).mean()
+    rolling_mean = data['Close'].rolling(window=20).mean()
+    rolling_std = data['Close'].rolling(window=20).std()
+    data['BB_upper'] = rolling_mean + (2 * rolling_std)
+    data['BB_lower'] = rolling_mean - (2 * rolling_std)
+    data['MACD'] = data['Close'].ewm(span=12).mean() - data['Close'].ewm(span=26).mean()
+    data['Signal'] = data['MACD'].ewm(span=9).mean()
+
+# Fetch and validate data
 def fetch_data(ticker, period="6mo", interval="1d"):
-    """Fetch stock data and validate columns."""
+    """Fetch stock data with validation and dynamic column matching."""
     try:
         data = yf.download(ticker, period=period, interval=interval, group_by="ticker")
-
-        # Flatten multi-index columns if necessary
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = ['_'.join(col).strip() for col in data.columns.values]
 
-        # Dynamically match 'Close' column
         close_column = [col for col in data.columns if 'close' in col.lower()]
         if not close_column:
-            st.error("No 'Close' column or similar found in the data.")
+            st.error("No 'Close' column found in the data.")
             st.stop()
         else:
             data.rename(columns={close_column[0]: 'Close'}, inplace=True)
 
-        # Check for null values in 'Close'
         if data['Close'].isnull().all():
             st.error("The 'Close' column contains only null values.")
             st.stop()
@@ -41,8 +49,22 @@ def fetch_data(ticker, period="6mo", interval="1d"):
         st.error(f"Error fetching data: {e}")
         return None
 
+# Generate actionable insights
+def generate_insights(data):
+    """Generate actionable insights based on RSI and Bollinger Bands."""
+    insights = []
+    if data['RSI'].iloc[-1] < 30:
+        insights.append("The stock is oversold. Consider buying.")
+    if data['RSI'].iloc[-1] > 70:
+        insights.append("The stock is overbought. Consider selling.")
+    if data['Close'].iloc[-1] < data['BB_lower'].iloc[-1]:
+        insights.append("The stock is trading below the lower Bollinger Band. It might be undervalued.")
+    if data['Close'].iloc[-1] > data['BB_upper'].iloc[-1]:
+        insights.append("The stock is trading above the upper Bollinger Band. It might be overvalued.")
+    return insights
+
 # Main app
-st.title("Stock Data and Indicators")
+st.title("Stock Data and Indicators with Insights")
 
 # Ticker input
 ticker = st.text_input("Enter a stock ticker:", "AAPL").upper()
@@ -52,33 +74,51 @@ if ticker:
     data = fetch_data(ticker)
 
     if data is not None:
-        # Calculate RSI
-        try:
-            data['RSI'] = calculate_rsi(data['Close'])
+        # Calculate indicators
+        data['RSI'] = calculate_rsi(data['Close'])
+        calculate_indicators(data)
 
-            # Plot the Close price
-            st.subheader("Price Chart")
-            fig, ax = plt.subplots()
-            ax.plot(data.index, data['Close'], label='Close Price', color='blue')
-            ax.set_title(f"{ticker} Close Price")
-            ax.set_xlabel("Date")
-            ax.set_ylabel("Price")
-            ax.legend()
-            st.pyplot(fig)
+        # Display data preview
+        st.write("Processed data preview:")
+        st.write(data[['Close', 'RSI', 'BB_upper', 'BB_lower', 'MACD', 'Signal']].dropna().tail())
 
-            # Plot the RSI
-            st.subheader("RSI Chart")
-            fig, ax = plt.subplots()
-            ax.plot(data.index, data['RSI'], label='RSI', color='orange')
-            ax.axhline(70, linestyle='--', color='red', label='Overbought')
-            ax.axhline(30, linestyle='--', color='green', label='Oversold')
-            ax.set_title(f"{ticker} RSI")
-            ax.set_xlabel("Date")
-            ax.set_ylabel("RSI")
-            ax.legend()
-            st.pyplot(fig)
+        # Generate insights
+        insights = generate_insights(data)
+        st.subheader("Actionable Insights")
+        for insight in insights:
+            st.write(f"- {insight}")
 
-        except Exception as e:
-            st.error(f"Error calculating indicators: {e}")
-    else:
-        st.error(f"No valid data available for {ticker}.")
+        # Plot the Close price and Bollinger Bands
+        st.subheader("Price Chart with Bollinger Bands")
+        fig, ax = plt.subplots()
+        ax.plot(data.index, data['Close'], label='Close Price', color='blue')
+        ax.plot(data.index, data['BB_upper'], label='Upper Bollinger Band', linestyle='--', color='red')
+        ax.plot(data.index, data['BB_lower'], label='Lower Bollinger Band', linestyle='--', color='green')
+        ax.set_title(f"{ticker} Close Price with Bollinger Bands")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Price")
+        ax.legend()
+        st.pyplot(fig)
+
+        # Plot the RSI
+        st.subheader("RSI Chart")
+        fig, ax = plt.subplots()
+        ax.plot(data.index, data['RSI'], label='RSI', color='orange')
+        ax.axhline(70, linestyle='--', color='red', label='Overbought')
+        ax.axhline(30, linestyle='--', color='green', label='Oversold')
+        ax.set_title(f"{ticker} RSI")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("RSI")
+        ax.legend()
+        st.pyplot(fig)
+
+        # Plot MACD and Signal
+        st.subheader("MACD Chart")
+        fig, ax = plt.subplots()
+        ax.plot(data.index, data['MACD'], label='MACD', color='purple')
+        ax.plot(data.index, data['Signal'], label='Signal Line', color='pink')
+        ax.set_title(f"{ticker} MACD")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("MACD")
+        ax.legend()
+        st.pyplot(fig)
